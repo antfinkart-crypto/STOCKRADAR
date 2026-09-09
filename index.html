@@ -31,7 +31,7 @@
     .animate-marquee {
       display: inline-flex;
       white-space: nowrap;
-      animation: marquee 35s linear infinite;
+      animation: marquee 45s linear infinite;
     }
     .animate-marquee:hover {
       animation-play-state: paused;
@@ -45,168 +45,71 @@
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 min-h-screen transition-colors duration-150 antialiased font-sans">
   
-  <!-- DYNAMIC LIVE TICKER MARQUEE -->
-  <div class="bg-slate-950 text-slate-200 border-b border-slate-800 text-[11px] font-mono py-1.5 overflow-hidden whitespace-nowrap shadow-inner flex items-center">
-    <div class="px-3 bg-cyan-900/80 text-cyan-300 font-black text-[10px] uppercase tracking-wider py-0.5 rounded ml-2 z-10 hidden sm:block">
-      LIVE MOVERS
+  <!-- ALWAYS VISIBLE TOP TICKER (EVEN BEFORE LOGIN) -->
+  <div class="bg-slate-950 text-slate-200 border-b border-slate-800 text-[11px] font-mono py-2 overflow-hidden whitespace-nowrap shadow-inner flex items-center">
+    <div class="px-3 bg-cyan-900/80 text-cyan-300 font-black text-[10px] uppercase tracking-wider py-0.5 rounded ml-3 z-10 hidden sm:block">
+      MARKET RADAR
     </div>
     <div class="overflow-hidden flex-1 relative">
       <div id="tickerTrack" class="animate-marquee flex items-center space-x-6">
-        <span class="text-slate-400 font-bold">Syncing Nifty 50 & 500 Top Movers...</span>
+        <span class="text-slate-400 font-bold">Syncing Nifty 50 & 500 Leaders...</span>
       </div>
     </div>
   </div>
 
-  <!-- PIN LOCK & RESET MODAL -->
-  <div id="pinLockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md px-4">
-    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-7 max-w-sm w-full shadow-2xl text-center">
+  <!-- GATEKEEPER / BRANDED LOGIN HERO (SHOWN WHEN LOGGED OUT) -->
+  <div id="gatekeeperScreen" class="min-h-[calc(100vh-42px)] flex items-center justify-center px-4 py-8">
+    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center">
+      
+      <!-- Lock View -->
       <div id="lockView">
-        <div class="w-14 h-14 rounded-2xl bg-amber-400/20 text-amber-500 mx-auto flex items-center justify-center text-2xl font-black mb-3 border border-amber-400/30">🔒</div>
-        <h2 class="text-xl font-black text-slate-950 dark:text-white tracking-tight">AntFinServ Terminal</h2>
-        <p class="text-xs font-bold text-slate-500 mt-0.5 mb-5">Admin (6-Digit) / Client (4-Digit)</p>
+        <div class="w-16 h-16 rounded-2xl bg-cyan-600/10 text-cyan-600 dark:text-cyan-400 mx-auto flex items-center justify-center text-3xl font-black mb-4 border border-cyan-500/20">
+          🏛️
+        </div>
+        <h2 class="text-2xl font-black text-slate-950 dark:text-white tracking-tight">AntFinServ Wealth Desk</h2>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-bold text-cyan-700 dark:text-cyan-400 mt-2 mb-4 border border-slate-200 dark:border-slate-700">
+          ARN-94204 • AMFI Registered
+        </div>
+        <p class="text-xs font-bold text-slate-500 mb-6 leading-relaxed">
+          Institutional Quantitative Radar & Positional Compounding Terminal
+        </p>
         
         <input id="pinInput" type="password" maxlength="6" placeholder="• • • •" 
-               class="w-full text-center tracking-[0.5em] text-3xl font-black font-mono py-3 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-cyan-600 mb-2">
+               class="w-full text-center tracking-[0.6em] text-3xl font-black font-mono py-3 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-cyan-600 mb-3 shadow-inner">
         
-        <div id="pinError" class="text-xs font-bold text-rose-600 mb-3 hidden leading-snug text-left bg-rose-50 dark:bg-rose-950/50 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900"></div>
+        <div id="pinError" class="text-xs font-bold text-rose-600 mb-3 hidden leading-snug text-left bg-rose-50 dark:bg-rose-950/50 p-3 rounded-xl border border-rose-200 dark:border-rose-900"></div>
 
-        <button onclick="submitPin()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-black py-3 rounded-2xl text-sm shadow-md transition">UNLOCK RADAR</button>
+        <button onclick="submitPin()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-black py-3.5 rounded-2xl text-sm shadow-md transition">
+          SECURE CLIENT UNLOCK
+        </button>
 
-        <div class="mt-4 flex justify-between items-center text-[11px] font-bold text-slate-400">
-          <button onclick="switchView('resetView')" class="hover:text-cyan-600 underline">Client Reset PIN?</button>
-          <span>ARN-94204</span>
+        <div class="mt-5 flex justify-between items-center text-xs font-bold text-slate-400 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <button onclick="switchView('resetView')" class="hover:text-cyan-600 underline">Forgot / Reset PIN?</button>
+          <span>Private Desk Access</span>
         </div>
       </div>
 
+      <!-- Reset View -->
       <div id="resetView" class="hidden text-left">
-        <h3 class="text-base font-black text-slate-900 dark:text-white mb-1">Reset Client PIN</h3>
-        <p class="text-xs text-slate-500 mb-4 font-semibold">Enter registered details to set new 4-digit PIN:</p>
-        <div class="space-y-2 mb-4">
+        <h3 class="text-base font-black text-slate-900 dark:text-white mb-1">Self-Service PIN Reset</h3>
+        <p class="text-xs text-slate-500 mb-4 font-semibold">Verify your registered details to assign a new 4-digit PIN:</p>
+        <div class="space-y-2.5 mb-4">
           <input id="resetMobile" type="text" placeholder="Registered 10-Digit Mobile" class="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
           <input id="resetEmail" type="email" placeholder="Registered Email Address" class="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
           <input id="resetNewPin" type="password" maxlength="4" placeholder="Set New 4-Digit PIN" class="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-center">
         </div>
         <div id="resetMsg" class="text-xs font-bold mb-3 hidden p-2.5 rounded-xl"></div>
         <div class="flex gap-2">
-          <button onclick="switchView('lockView')" class="w-1/3 bg-slate-200 dark:bg-slate-800 font-bold py-2.5 rounded-xl text-xs">Back</button>
-          <button onclick="submitResetPin()" class="w-2/3 bg-cyan-600 hover:bg-cyan-700 text-white font-black py-2.5 rounded-xl text-xs">Update PIN</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CATEGORY EXPLAINER MODAL -->
-  <div id="categoryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4 hidden">
-    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-      <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
-        <h3 id="catModalTitle" class="text-sm font-black text-slate-900 dark:text-white">Institutional Categorization</h3>
-        <button onclick="closeCategoryModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
-      </div>
-      <p id="catModalBody" class="text-xs font-bold text-slate-700 dark:text-slate-300 leading-relaxed"></p>
-      <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 font-semibold">
-        Screened via AntFinServ Quantitative Valuation Matrix
-      </div>
-    </div>
-  </div>
-
-  <!-- ADMIN CONSOLE MODAL -->
-  <div id="adminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4 hidden">
-    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[92vh] flex flex-col">
-      <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
-        <div>
-          <h3 class="text-base font-black text-slate-950 dark:text-white">Admin Desk & Client Logs</h3>
-          <p class="text-xs text-slate-500 font-semibold">Lead Capturing, Role Control & Activity Reports</p>
-        </div>
-        <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
-      </div>
-
-      <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3 gap-2">
-        <button onclick="downloadExcelAudit()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
-          📊 Export Excel (.xlsx)
-        </button>
-        <div class="flex items-center gap-1.5">
-          <input id="adminNewPinInput" type="password" maxlength="6" placeholder="New 6-Digit PIN" class="w-32 text-xs font-mono font-bold px-2 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-center">
-          <button onclick="changeAdminPin()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black px-3 py-1.5 rounded-xl shadow-sm">Update PIN</button>
+          <button onclick="switchView('lockView')" class="w-1/3 bg-slate-200 dark:bg-slate-800 font-bold py-2.5 rounded-xl text-xs">Cancel</button>
+          <button onclick="submitResetPin()" class="w-2/3 bg-cyan-600 hover:bg-cyan-700 text-white font-black py-2.5 rounded-xl text-xs">Verify & Update</button>
         </div>
       </div>
 
-      <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3 space-y-2">
-        <span class="text-[11px] font-black uppercase text-cyan-600 tracking-wider">Create New Client Access (4-Digit PIN)</span>
-        <div class="grid grid-cols-2 gap-2">
-          <input id="newClientName" type="text" placeholder="Client Name" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <input id="newClientPin" type="text" maxlength="4" placeholder="Assign 4-Digit PIN" class="text-xs font-mono font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <input id="newClientMobile" type="tel" placeholder="Mobile Number" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <input id="newClientEmail" type="email" placeholder="Email Address" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
-        </div>
-        <button onclick="addNewClient()" class="w-full bg-cyan-600 text-white text-xs font-black py-2 rounded-xl">Save & Authorize Client</button>
-      </div>
-
-      <div id="adminUserList" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
     </div>
   </div>
 
-  <!-- PRINTABLE BRANDED REPORT MODAL (ADMIN ONLY) -->
-  <div id="printableReport" class="hidden p-8 bg-white text-slate-950 font-sans">
-    <div class="border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-end">
-      <div>
-        <h1 class="text-2xl font-black tracking-tight text-cyan-900">ANTFINSERV WEALTH RESEARCH</h1>
-        <p class="text-xs font-bold text-slate-600">Institutional Positional Intelligence • ARN-94204</p>
-      </div>
-      <div class="text-right text-xs font-bold text-slate-500">
-        Generated: <span id="rptDate"></span>
-      </div>
-    </div>
-
-    <div class="flex justify-between items-center mb-6">
-      <div>
-        <h2 id="rptStockName" class="text-3xl font-black"></h2>
-        <span id="rptTicker" class="text-sm font-mono font-bold bg-slate-100 px-2 py-0.5 rounded"></span>
-      </div>
-      <div class="text-right">
-        <div class="text-[10px] font-extrabold uppercase text-slate-400">Current Market Price</div>
-        <div id="rptCmp" class="text-3xl font-black font-mono text-cyan-800"></div>
-      </div>
-    </div>
-
-    <div class="p-3.5 bg-slate-50 border rounded-xl mb-4">
-      <div class="text-xs font-black uppercase text-slate-500 mb-1">Categorization & Execution Verdict</div>
-      <div id="rptStatus" class="text-base font-black mb-1"></div>
-      <p id="rptReason" class="text-xs font-medium text-slate-700"></p>
-    </div>
-
-    <div class="grid grid-cols-3 gap-3 text-center mb-4">
-      <div class="border p-2.5 rounded-xl bg-slate-50">
-        <div class="text-[10px] uppercase font-bold text-slate-500">Base Stop-Loss</div>
-        <div id="rptSL" class="text-lg font-black font-mono text-rose-600"></div>
-      </div>
-      <div class="border p-2.5 rounded-xl bg-slate-50">
-        <div class="text-[10px] uppercase font-bold text-slate-500">Support (S1)</div>
-        <div id="rptSupp" class="text-lg font-black font-mono"></div>
-      </div>
-      <div class="border p-2.5 rounded-xl bg-slate-50">
-        <div class="text-[10px] uppercase font-bold text-slate-500">Targets (T1 / T2)</div>
-        <div id="rptTgt" class="text-lg font-black font-mono text-emerald-600"></div>
-      </div>
-    </div>
-
-    <div class="border rounded-xl p-3.5 bg-slate-50 mb-6">
-      <div class="text-xs font-black uppercase text-slate-700 mb-2">Institutional FTDB Matrix</div>
-      <div class="text-xs space-y-1.5 font-mono">
-        <div><strong>F (Valuation & Cash Flow):</strong> <span id="rptF"></span></div>
-        <div><strong>T (Trend & Momentum):</strong> <span id="rptT"></span></div>
-        <div><strong>D (Derivatives & Delivery):</strong> <span id="rptD"></span></div>
-        <div><strong>B (Big Money Footprint):</strong> <span id="rptB"></span></div>
-      </div>
-    </div>
-
-    <div class="border-t pt-3 text-[10px] text-slate-400 flex justify-between items-center">
-      <span>AntFinServ Private Client Desk • Strictly for Authorized Eyes Only</span>
-      <span>ARN-94204 • Confidential Report</span>
-    </div>
-  </div>
-
-  <!-- MAIN TERMINAL APP -->
-  <div class="w-[95%] max-w-[1440px] mx-auto py-5">
+  <!-- AUTHENTICATED RADAR APP (HIDDEN UNTIL VALID PIN ENTERED) -->
+  <div id="authenticatedApp" class="hidden w-[95%] max-w-[1440px] mx-auto py-5">
     <header class="flex justify-between items-center pb-4 mb-5 border-b border-slate-300 dark:border-slate-800">
       <div>
         <div class="flex items-center gap-2.5">
@@ -230,7 +133,7 @@
         </button>
 
         <button onclick="lockTerminal()" title="Lock Terminal" class="px-3 py-1.5 rounded-lg text-xs font-black border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200">
-          🔒 Lock
+          🔒 Lock Desk
         </button>
 
         <button onclick="toggleTheme()" id="themeBtn" 
@@ -248,7 +151,6 @@
                  placeholder="ENTER COMPANY NAME OR SYMBOL (E.G. CAPRI, TATA, M&M, TCS)" 
                  class="w-full bg-white dark:bg-slate-900 text-slate-950 dark:text-white placeholder:text-slate-400 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-base font-black uppercase focus:outline-none focus:border-cyan-600 shadow-sm">
           
-          <!-- FLOATING SUGGESTION CARD CONTAINER -->
           <div id="suggestBox" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden hidden">
             <div id="suggestList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
           </div>
@@ -332,7 +234,7 @@
         </div>
       </div>
 
-      <!-- FTDB Framework (Includes Live D-Pillar OI Interpretation) -->
+      <!-- FTDB Framework -->
       <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -383,22 +285,117 @@
     </div>
   </div>
 
+  <!-- ADMIN CONSOLE MODAL -->
+  <div id="adminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4 hidden">
+    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[92vh] flex flex-col">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
+        <div>
+          <h3 class="text-base font-black text-slate-950 dark:text-white">Admin Desk & Client Logs</h3>
+          <p class="text-xs text-slate-500 font-semibold">Lead Capturing, Role Control & Activity Reports</p>
+        </div>
+        <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+      </div>
+
+      <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3 gap-2">
+        <button onclick="downloadExcelAudit()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+          📊 Export Excel (.xlsx)
+        </button>
+        <div class="flex items-center gap-1.5">
+          <input id="adminNewPinInput" type="password" maxlength="6" placeholder="New 6-Digit PIN" class="w-32 text-xs font-mono font-bold px-2 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-center">
+          <button onclick="changeAdminPin()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black px-3 py-1.5 rounded-xl shadow-sm">Update PIN</button>
+        </div>
+      </div>
+
+      <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3 space-y-2">
+        <span class="text-[11px] font-black uppercase text-cyan-600 tracking-wider">Create New Client Access (4-Digit PIN)</span>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="newClientName" type="text" placeholder="Client Name" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <input id="newClientPin" type="text" maxlength="4" placeholder="Assign 4-Digit PIN" class="text-xs font-mono font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <input id="newClientMobile" type="tel" placeholder="Mobile Number" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <input id="newClientEmail" type="email" placeholder="Email Address" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+        </div>
+        <button onclick="addNewClient()" class="w-full bg-cyan-600 text-white text-xs font-black py-2 rounded-xl">Save & Authorize Client</button>
+      </div>
+
+      <div id="adminUserList" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- PRINTABLE BRANDED REPORT (ADMIN ONLY) -->
+  <div id="printableReport" class="hidden p-8 bg-white text-slate-950 font-sans">
+    <div class="border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-end">
+      <div>
+        <h1 class="text-2xl font-black tracking-tight text-cyan-900">ANTFINSERV WEALTH RESEARCH</h1>
+        <p class="text-xs font-bold text-slate-600">Institutional Positional Intelligence • ARN-94204</p>
+      </div>
+      <div class="text-right text-xs font-bold text-slate-500">
+        Generated: <span id="rptDate"></span>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h2 id="rptStockName" class="text-3xl font-black"></h2>
+        <span id="rptTicker" class="text-sm font-mono font-bold bg-slate-100 px-2 py-0.5 rounded"></span>
+      </div>
+      <div class="text-right">
+        <div class="text-[10px] font-extrabold uppercase text-slate-400">Current Market Price</div>
+        <div id="rptCmp" class="text-3xl font-black font-mono text-cyan-800"></div>
+      </div>
+    </div>
+
+    <div class="p-3.5 bg-slate-50 border rounded-xl mb-4">
+      <div class="text-xs font-black uppercase text-slate-500 mb-1">Categorization & Execution Verdict</div>
+      <div id="rptStatus" class="text-base font-black mb-1"></div>
+      <p id="rptReason" class="text-xs font-medium text-slate-700"></p>
+    </div>
+
+    <div class="grid grid-cols-3 gap-3 text-center mb-4">
+      <div class="border p-2.5 rounded-xl bg-slate-50">
+        <div class="text-[10px] uppercase font-bold text-slate-500">Base Stop-Loss</div>
+        <div id="rptSL" class="text-lg font-black font-mono text-rose-600"></div>
+      </div>
+      <div class="border p-2.5 rounded-xl bg-slate-50">
+        <div class="text-[10px] uppercase font-bold text-slate-500">Support (S1)</div>
+        <div id="rptSupp" class="text-lg font-black font-mono"></div>
+      </div>
+      <div class="border p-2.5 rounded-xl bg-slate-50">
+        <div class="text-[10px] uppercase font-bold text-slate-500">Targets (T1 / T2)</div>
+        <div id="rptTgt" class="text-lg font-black font-mono text-emerald-600"></div>
+      </div>
+    </div>
+
+    <div class="border rounded-xl p-3.5 bg-slate-50 mb-6">
+      <div class="text-xs font-black uppercase text-slate-700 mb-2">Institutional FTDB Matrix</div>
+      <div class="text-xs space-y-1.5 font-mono">
+        <div><strong>F (Valuation & Cash Flow):</strong> <span id="rptF"></span></div>
+        <div><strong>T (Trend & Momentum):</strong> <span id="rptT"></span></div>
+        <div><strong>D (Derivatives & Delivery):</strong> <span id="rptD"></span></div>
+        <div><strong>B (Big Money Footprint):</strong> <span id="rptB"></span></div>
+      </div>
+    </div>
+
+    <div class="border-t pt-3 text-[10px] text-slate-400 flex justify-between items-center">
+      <span>AntFinServ Private Client Desk • Strictly for Authorized Eyes Only</span>
+      <span>ARN-94204 • Confidential Report</span>
+    </div>
+  </div>
+
   <script>
     let revPatChartInstance = null;
     let roeRoceChartInstance = null;
     let momentumChartInstance = null;
-    const STORAGE_KEY = 'antfinserv_radar_v10';
+    const STORAGE_KEY = 'antfinserv_radar_v11';
     let currentAuth = null;
     let currentStockData = null;
     let inactivityTimer = null;
     let searchDebounce = null;
 
-    // 10-MINUTE INACTIVITY AUTO-LOCK
     function resetInactivityTimer() {
       clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
         if (currentAuth) {
-          alert('Terminal locked after 10 minutes of inactivity. Enter your PIN to continue.');
+          alert('Session timed out after 10 minutes of inactivity. Desk locked.');
           lockTerminal();
         }
       }, 10 * 60 * 1000);
@@ -409,24 +406,22 @@
     });
 
     window.addEventListener('DOMContentLoaded', () => {
-      renderRecentList();
-      resetInactivityTimer();
       loadLiveTicker();
       setInterval(loadLiveTicker, 240000);
 
+      // Check if user has an active authenticated session
       const savedAuth = localStorage.getItem('antfinserv_auth');
       if (savedAuth) {
         currentAuth = JSON.parse(savedAuth);
         unlockUI(currentAuth);
       } else {
-        document.getElementById('pinLockModal').classList.remove('hidden');
+        showGatekeeper();
       }
 
       document.getElementById('pinInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') submitPin();
       });
 
-      // SMART TYPEAHEAD SEARCH EVENT LISTENERS
       const tickerInput = document.getElementById('tickerInput');
       tickerInput.addEventListener('input', handleTypeahead);
       tickerInput.addEventListener('keydown', (e) => {
@@ -436,7 +431,6 @@
         }
       });
 
-      // Close suggestion dropdown if clicked outside
       document.addEventListener('click', (e) => {
         if (!e.target.closest('#tickerInput') && !e.target.closest('#suggestBox')) {
           hideSuggestions();
@@ -444,88 +438,34 @@
       });
     });
 
-    // TYPEAHEAD SEARCH LOGIC
-    function handleTypeahead(e) {
-      const q = e.target.value.trim();
-      clearTimeout(searchDebounce);
-      if (q.length < 2) {
-        hideSuggestions();
-        return;
-      }
-
-      searchDebounce = setTimeout(async () => {
-        try {
-          const res = await fetch(`/api/search-companies?q=${encodeURIComponent(q)}`);
-          const items = await res.json();
-          renderSuggestions(items);
-        } catch (err) {
-          hideSuggestions();
-        }
-      }, 180); // 180ms debounce
+    function showGatekeeper() {
+      document.getElementById('gatekeeperScreen').classList.remove('hidden');
+      document.getElementById('authenticatedApp').classList.add('hidden');
+      document.getElementById('pinInput').value = '';
     }
 
-    function renderSuggestions(items) {
-      const box = document.getElementById('suggestBox');
-      const list = document.getElementById('suggestList');
-      if (!items || items.length === 0) {
-        hideSuggestions();
-        return;
-      }
+    function unlockUI(auth) {
+      document.getElementById('gatekeeperScreen').classList.add('hidden');
+      document.getElementById('authenticatedApp').classList.remove('hidden');
+      renderRecentList();
+      resetInactivityTimer();
 
-      list.innerHTML = '';
-      items.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer flex justify-between items-center transition';
-        row.innerHTML = `
-          <div>
-            <div class="text-xs font-black text-slate-900 dark:text-white tracking-tight">${item.name}</div>
-            <div class="text-[10px] font-bold text-slate-400 mt-0.5">${item.sector || 'NSE/BSE Listed'}</div>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="font-mono text-xs font-black px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800">${item.display}</span>
-            <span class="text-slate-400 font-bold text-xs">➔</span>
-          </div>
-        `;
-        row.onclick = () => {
-          document.getElementById('tickerInput').value = item.display;
-          hideSuggestions();
-          runAnalysis(item.symbol);
-        };
-        list.appendChild(row);
-      });
-      box.classList.remove('hidden');
+      if (auth.role === 'admin') {
+        document.getElementById('adminTriggerBtn').classList.remove('hidden');
+        document.getElementById('adminPdfBtn').classList.remove('hidden');
+      } else {
+        document.getElementById('adminTriggerBtn').classList.add('hidden');
+        document.getElementById('adminPdfBtn').classList.add('hidden');
+      }
     }
 
-    function hideSuggestions() {
-      document.getElementById('suggestBox').classList.add('hidden');
-    }
-
-    // LOAD DYNAMIC TICKER
-    async function loadLiveTicker() {
-      try {
-        const res = await fetch('/api/market-ticker');
-        const data = await res.json();
-        const track = document.getElementById('tickerTrack');
-        if (!data || !data.n50_gainers) return;
-
-        let itemsHtml = '';
-        data.n50_gainers.forEach(s => {
-          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-cyan-400 font-extrabold text-[9px] px-1 bg-cyan-950/60 rounded">N50</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-emerald-400">+${s.chg}%</span></span>`;
-        });
-        data.n50_losers.forEach(s => {
-          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-cyan-400 font-extrabold text-[9px] px-1 bg-cyan-950/60 rounded">N50</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-rose-400">${s.chg}%</span></span>`;
-        });
-        data.n500_gainers.forEach(s => {
-          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-amber-400 font-extrabold text-[9px] px-1 bg-amber-950/60 rounded">N500</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-emerald-400">+${s.chg}%</span></span>`;
-        });
-        data.n500_losers.forEach(s => {
-          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-amber-400 font-extrabold text-[9px] px-1 bg-amber-950/60 rounded">N500</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-rose-400">${s.chg}%</span></span>`;
-        });
-
-        track.innerHTML = itemsHtml + itemsHtml;
-      } catch (err) {
-        console.log("Ticker syncing...");
-      }
+    function lockTerminal() {
+      localStorage.removeItem('antfinserv_auth');
+      currentAuth = null;
+      document.getElementById('adminTriggerBtn').classList.add('hidden');
+      document.getElementById('adminPdfBtn').classList.add('hidden');
+      switchView('lockView');
+      showGatekeeper();
     }
 
     function switchView(view) {
@@ -554,9 +494,9 @@
         const data = await res.json();
         if (!res.ok) {
           if (data.detail === "REVOKED_ACCESS") {
-            errBox.innerText = "Your institutional access has been suspended or revoked. Please contact AntFinServ Wealth Desk (ARN-94204) to renew your subscription.";
+            errBox.innerText = "Your institutional access has been suspended or revoked. Contact AntFinServ Wealth Desk (ARN-94204).";
           } else {
-            errBox.innerText = "Invalid PIN. Client PIN is 4 digits, Admin PIN is 6 digits (942040).";
+            errBox.innerText = "Invalid Access PIN. Enter your authorized Client PIN (4 digits) or Master Admin PIN (6 digits).";
           }
           errBox.classList.remove('hidden');
           return;
@@ -566,7 +506,7 @@
         localStorage.setItem('antfinserv_auth', JSON.stringify(currentAuth));
         unlockUI(currentAuth);
       } catch (err) {
-        errBox.innerText = "Connection failed. Server warming up...";
+        errBox.innerText = "Connecting to server...";
         errBox.classList.remove('hidden');
       }
     }
@@ -614,26 +554,85 @@
       }
     }
 
-    function unlockUI(auth) {
-      document.getElementById('pinLockModal').classList.add('hidden');
-      document.getElementById('pinError').classList.add('hidden');
-      if (auth.role === 'admin') {
-        document.getElementById('adminTriggerBtn').classList.remove('hidden');
-        document.getElementById('adminPdfBtn').classList.remove('hidden');
-      } else {
-        document.getElementById('adminTriggerBtn').classList.add('hidden');
-        document.getElementById('adminPdfBtn').classList.add('hidden');
+    // EXPANDED TICKER RENDERING
+    async function loadLiveTicker() {
+      try {
+        const res = await fetch('/api/market-ticker');
+        const data = await res.json();
+        const track = document.getElementById('tickerTrack');
+        if (!data || !data.n50_gainers) return;
+
+        let itemsHtml = '';
+        data.n50_gainers.forEach(s => {
+          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-cyan-400 font-extrabold text-[9px] px-1 bg-cyan-950/60 rounded">N50</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-emerald-400">+${s.chg}%</span></span>`;
+        });
+        data.n50_losers.forEach(s => {
+          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-cyan-400 font-extrabold text-[9px] px-1 bg-cyan-950/60 rounded">N50</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-rose-400">${s.chg}%</span></span>`;
+        });
+        data.n500_gainers.forEach(s => {
+          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-amber-400 font-extrabold text-[9px] px-1 bg-amber-950/60 rounded">N500</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-emerald-400">+${s.chg}%</span></span>`;
+        });
+        data.n500_losers.forEach(s => {
+          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-amber-400 font-extrabold text-[9px] px-1 bg-amber-950/60 rounded">N500</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-rose-400">${s.chg}%</span></span>`;
+        });
+
+        track.innerHTML = itemsHtml + itemsHtml;
+      } catch (err) {
+        console.log("Ticker updating...");
       }
     }
 
-    function lockTerminal() {
-      localStorage.removeItem('antfinserv_auth');
-      currentAuth = null;
-      document.getElementById('pinInput').value = '';
-      document.getElementById('adminTriggerBtn').classList.add('hidden');
-      document.getElementById('adminPdfBtn').classList.add('hidden');
-      document.getElementById('pinLockModal').classList.remove('hidden');
-      switchView('lockView');
+    function handleTypeahead(e) {
+      const q = e.target.value.trim();
+      clearTimeout(searchDebounce);
+      if (q.length < 2) {
+        hideSuggestions();
+        return;
+      }
+      searchDebounce = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/search-companies?q=${encodeURIComponent(q)}`);
+          const items = await res.json();
+          renderSuggestions(items);
+        } catch (err) {
+          hideSuggestions();
+        }
+      }, 180);
+    }
+
+    function renderSuggestions(items) {
+      const box = document.getElementById('suggestBox');
+      const list = document.getElementById('suggestList');
+      if (!items || items.length === 0) {
+        hideSuggestions();
+        return;
+      }
+      list.innerHTML = '';
+      items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer flex justify-between items-center transition';
+        row.innerHTML = `
+          <div>
+            <div class="text-xs font-black text-slate-900 dark:text-white tracking-tight">${item.name}</div>
+            <div class="text-[10px] font-bold text-slate-400 mt-0.5">${item.sector || 'NSE/BSE Listed'}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs font-black px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800">${item.display}</span>
+            <span class="text-slate-400 font-bold text-xs">➔</span>
+          </div>
+        `;
+        row.onclick = () => {
+          document.getElementById('tickerInput').value = item.display;
+          hideSuggestions();
+          runAnalysis(item.symbol);
+        };
+        list.appendChild(row);
+      });
+      box.classList.remove('hidden');
+    }
+
+    function hideSuggestions() {
+      document.getElementById('suggestBox').classList.add('hidden');
     }
 
     function generateBrandedPdf() {
@@ -654,7 +653,6 @@
       document.getElementById('rptT').innerText = currentStockData.ftdb.T;
       document.getElementById('rptD').innerText = currentStockData.ftdb.D;
       document.getElementById('rptB').innerText = currentStockData.ftdb.B;
-
       window.print();
     }
 
@@ -837,7 +835,7 @@
 
     async function runAnalysis(manualTicker = null) {
       if (!currentAuth) {
-        document.getElementById('pinLockModal').classList.remove('hidden');
+        showGatekeeper();
         return;
       }
 
@@ -860,13 +858,13 @@
         });
         
         if (res.status === 401 || res.status === 403) {
-          alert('Access Revoked by Administrator.');
+          alert('Access Revoked or Expired.');
           lockTerminal();
           return;
         }
 
         if (!res.ok) {
-          alert('Stock not found. Try typing company name in the search box.');
+          alert('Stock not found. Try searching by company name.');
           return;
         }
 
@@ -874,7 +872,7 @@
         saveToHistory(data);
         renderData(data);
       } catch (err) {
-        alert('Server connection error.');
+        alert('Server error.');
       } finally {
         btn.innerText = "SCAN";
         btn.disabled = false;

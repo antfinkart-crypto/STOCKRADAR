@@ -26,25 +26,17 @@ DEFAULT_DATA = {
             "mobile": "Master Desk",
             "email": "admin@antfinserv.com",
             "active": True
-        },
-        "1234": {
-            "role": "guest",
-            "name": "Institutional Client",
-            "mobile": "9876543210",
-            "email": "client@investor.com",
-            "active": True
         }
     }
 }
 
-# Curated lookup dictionary for popular Indian stocks & commonly confused tickers
 COMPANY_DIRECTORY = [
     {"name": "Capri Global Capital Limited", "symbol": "CAPRIGLOBAL.NS", "display": "CGCL / CAPRIGLOBAL", "sector": "NBFC"},
     {"name": "Tata Consultancy Services", "symbol": "TCS.NS", "display": "TCS", "sector": "IT"},
     {"name": "Tata Motors Limited", "symbol": "TATAMOTORS.NS", "display": "TATAMOTORS", "sector": "Auto"},
     {"name": "Tata Power Company", "symbol": "TATAPOWER.NS", "display": "TATAPOWER", "sector": "Power"},
     {"name": "Tata Steel Limited", "symbol": "TATASTEEL.NS", "display": "TATASTEEL", "sector": "Metals"},
-    {"name": "Reliance Industries Limited", "symbol": "RELIANCE.NS", "display": "RELIANCE", "sector": "Conglomerate"},
+    {"name": "Reliance Industries Limited", "symbol": "RELIANCE.NS", "display": "RELIANCE", "sector": "Energy"},
     {"name": "HDFC Bank Limited", "symbol": "HDFCBANK.NS", "display": "HDFCBANK", "sector": "Banking"},
     {"name": "ICICI Bank Limited", "symbol": "ICICIBANK.NS", "display": "ICICIBANK", "sector": "Banking"},
     {"name": "State Bank of India", "symbol": "SBIN.NS", "display": "SBIN", "sector": "Banking"},
@@ -83,6 +75,8 @@ def load_db():
     try:
         with open(DB_FILE, "r") as f:
             data = json.load(f)
+            if "1234" in data.get("pins", {}):
+                data["pins"].pop("1234", None)
             for old_k in ["9999", "999999"]:
                 if old_k in data.get("pins", {}):
                     admin_profile = data["pins"].pop(old_k)
@@ -136,25 +130,99 @@ def serve_home():
 def serve_manifest():
     return FileResponse("manifest.json")
 
-# --- SMART SEARCH & TYPEAHEAD AUTOCOMPLETE ENDPOINT ---
+# --- STRICT DYNAMIC MOVERS TICKER WITH ZERO OVERLAP ---
+TICKER_CACHE = {"timestamp": 0, "data": {}}
+
+# Nifty 50 Representative Basket
+N50_TICKERS = [
+    "RELIANCE.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS", "TCS.NS",
+    "ITC.NS", "LT.NS", "BHARTIARTL.NS", "SBIN.NS", "AXISBANK.NS",
+    "KOTAKBANK.NS", "TATAMOTORS.NS", "MARUTI.NS", "SUNPHARMA.NS", "TITAN.NS",
+    "BAJFINANCE.NS", "HINDUNILVR.NS", "WIPRO.NS", "HCLTECH.NS", "TATASTEEL.NS"
+]
+
+# Broader Nifty 500 High-Beta Movers (Distinct Mid & Small Caps)
+N500_BROADER_TICKERS = [
+    "DIXON.NS", "POLYCAB.NS", "TRENT.NS", "HAL.NS", "BEL.NS",
+    "BHEL.NS", "SUZLON.NS", "ZOMATO.NS", "KALYANKJIL.NS", "CAPRIGLOBAL.NS",
+    "PRESTIGE.NS", "COFORGE.NS", "PERSISTENT.NS", "TATAPOWER.NS", "MUTHOOTFIN.NS",
+    "JIOFIN.NS", "INOXINDIA.NS", "OBEROIRLTY.NS", "BOSCHLTD.NS", "LODHA.NS",
+    "JINDALSTEL.NS", "FEDERALBNK.NS", "MAXHEALTH.NS", "APOLLOHOSP.NS", "VOLTAS.NS",
+    "DEEPAKNTR.NS", "ASTRAL.NS", "KPITTECH.NS", "MOTHERSON.NS", "RVNL.NS"
+]
+
+@app.get("/api/market-ticker")
+def get_market_ticker():
+    global TICKER_CACHE
+    now = time.time()
+    if now - TICKER_CACHE["timestamp"] < 240 and TICKER_CACHE["data"]:
+        return TICKER_CACHE["data"]
+
+    all_symbols = list(set(N50_TICKERS + N500_BROADER_TICKERS))
+    items_map = {}
+
+    try:
+        # Fast vectorized download
+        df = yf.download(" ".join(all_symbols), period="2d", interval="1d", group_by='ticker', threads=True, progress=False)
+        for sym in all_symbols:
+            try:
+                sub = df[sym] if sym in df else None
+                if sub is not None and not sub.empty and len(sub['Close']) >= 2:
+                    c_today = float(sub['Close'].iloc[-1])
+                    c_prev = float(sub['Close'].iloc[-2])
+                    chg_pct = round(((c_today - c_prev) / c_prev) * 100, 2)
+                    clean_sym = sym.replace(".NS", "")
+                    items_map[sym] = {
+                        "symbol": clean_sym,
+                        "price": round(c_today, 1),
+                        "chg": chg_pct
+                    }
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    # Safety fallbacks if live feed latency occurs
+    if not items_map:
+        for sym in N50_TICKERS:
+            items_map[sym] = {"symbol": sym.replace(".NS", ""), "price": 1500.0, "chg": 0.5}
+        for sym in N500_BROADER_TICKERS:
+            items_map[sym] = {"symbol": sym.replace(".NS", ""), "price": 850.0, "chg": 1.2}
+
+    # 1. Rank Nifty 50 (Top 5 Gainers & Top 5 Losers)
+    n50_available = [items_map[s] for s in N50_TICKERS if s in items_map]
+    n50_gainers = sorted(n50_available, key=lambda x: x["chg"], reverse=True)[:5]
+    n50_losers = sorted(n50_available, key=lambda x: x["chg"])[:5]
+
+    # Set of symbols selected in Nifty 50 to enforce DE-DUPLICATION
+    n50_selected_symbols = {s["symbol"] for s in (n50_gainers + n50_losers)}
+
+    # 2. Filter Broader N500: Exclude any stock already displayed in N50
+    n500_filtered = [items_map[s] for s in N500_BROADER_TICKERS if s in items_map and items_map[s]["symbol"] not in n50_selected_symbols]
+
+    # Rank Broader N500 (Top 10 Gainers & Top 10 Losers)
+    n500_gainers = sorted(n500_filtered, key=lambda x: x["chg"], reverse=True)[:10]
+    n500_losers = sorted(n500_filtered, key=lambda x: x["chg"])[:10]
+
+    final_feed = {
+        "n50_gainers": n50_gainers,
+        "n50_losers": n50_losers,
+        "n500_gainers": n500_gainers,
+        "n500_losers": n500_losers
+    }
+    TICKER_CACHE["timestamp"] = now
+    TICKER_CACHE["data"] = final_feed
+    return final_feed
+
 @app.get("/api/search-companies")
 def search_companies(q: str):
     query = q.strip().lower()
     if not query or len(query) < 2:
         return []
-
     results = []
-    # 1. Match local curated directory first (instant sub-millisecond response)
     for c in COMPANY_DIRECTORY:
         if query in c["name"].lower() or query in c["display"].lower() or query in c["symbol"].lower():
-            results.append({
-                "name": c["name"],
-                "symbol": c["symbol"],
-                "display": c["display"],
-                "sector": c["sector"]
-            })
-
-    # 2. If fewer than 4 matches, query Yahoo Finance auto-suggest API for Indian symbols
+            results.append(c)
     if len(results) < 4:
         try:
             url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}&quotesCount=6&newsCount=0"
@@ -167,7 +235,6 @@ def search_companies(q: str):
                     if sym.endswith(".NS") or sym.endswith(".BO"):
                         short_name = quote.get("shortname") or quote.get("longname") or sym
                         clean_sym = sym.replace(".NS", "").replace(".BO", "")
-                        # Avoid duplicates
                         if not any(r["symbol"] == sym for r in results):
                             results.append({
                                 "name": short_name,
@@ -177,83 +244,8 @@ def search_companies(q: str):
                             })
         except Exception:
             pass
-
     return results[:6]
 
-# --- LIGHTWEIGHT TICKER (NIFTY 50 & 500 MOVERS) ---
-TICKER_CACHE = {"timestamp": 0, "data": {}}
-
-CURATED_MOVERS = [
-    {"symbol": "RELIANCE", "ticker": "RELIANCE.NS", "is_n50": True},
-    {"symbol": "HDFCBANK", "ticker": "HDFCBANK.NS", "is_n50": True},
-    {"symbol": "TCS", "ticker": "TCS.NS", "is_n50": True},
-    {"symbol": "BHARTIARTL", "ticker": "BHARTIARTL.NS", "is_n50": True},
-    {"symbol": "ICICIBANK", "ticker": "ICICIBANK.NS", "is_n50": True},
-    {"symbol": "INFY", "ticker": "INFY.NS", "is_n50": True},
-    {"symbol": "TATAMOTORS", "ticker": "TATAMOTORS.NS", "is_n50": True},
-    {"symbol": "SUNPHARMA", "ticker": "SUNPHARMA.NS", "is_n50": True},
-    {"symbol": "TRENT", "ticker": "TRENT.NS", "is_n50": False},
-    {"symbol": "DIXON", "ticker": "DIXON.NS", "is_n50": False},
-    {"symbol": "POLYCAB", "ticker": "POLYCAB.NS", "is_n50": False},
-    {"symbol": "HAL", "ticker": "HAL.NS", "is_n50": False},
-    {"symbol": "BEL", "ticker": "BEL.NS", "is_n50": False},
-    {"symbol": "BHEL", "ticker": "BHEL.NS", "is_n50": False},
-    {"symbol": "SUZLON", "ticker": "SUZLON.NS", "is_n50": False},
-    {"symbol": "ZOMATO", "ticker": "ZOMATO.NS", "is_n50": False},
-    {"symbol": "CAPRIGLOBAL", "ticker": "CAPRIGLOBAL.NS", "is_n50": False},
-    {"symbol": "TATAPOWER", "ticker": "TATAPOWER.NS", "is_n50": False}
-]
-
-@app.get("/api/market-ticker")
-def get_market_ticker():
-    global TICKER_CACHE
-    now = time.time()
-    if now - TICKER_CACHE["timestamp"] < 300 and TICKER_CACHE["data"]:
-        return TICKER_CACHE["data"]
-
-    items = []
-    for item in CURATED_MOVERS:
-        try:
-            t = yf.Ticker(item["ticker"])
-            h = t.history(period="2d")
-            if len(h) >= 2:
-                c_now = float(h['Close'].iloc[-1])
-                c_prev = float(h['Close'].iloc[-2])
-                chg = round(((c_now - c_prev) / c_prev) * 100, 2)
-                items.append({
-                    "symbol": item["symbol"],
-                    "price": round(c_now, 1),
-                    "chg": chg,
-                    "is_n50": item["is_n50"]
-                })
-        except Exception:
-            continue
-
-    if not items:
-        items = [
-            {"symbol": "RELIANCE", "price": 2985.0, "chg": 1.15, "is_n50": True},
-            {"symbol": "HDFCBANK", "price": 1648.5, "chg": 0.65, "is_n50": True},
-            {"symbol": "TRENT", "price": 6940.0, "chg": 2.40, "is_n50": False},
-            {"symbol": "DIXON", "price": 12850.0, "chg": 3.10, "is_n50": False},
-            {"symbol": "CAPRIGLOBAL", "price": 224.5, "chg": 1.80, "is_n50": False},
-            {"symbol": "TCS", "price": 4210.0, "chg": -0.45, "is_n50": True},
-            {"symbol": "INFY", "price": 1890.0, "chg": 1.25, "is_n50": True}
-        ]
-
-    n50 = [s for s in items if s["is_n50"]]
-    n500 = [s for s in items if not s["is_n50"]]
-
-    feed = {
-        "n50_gainers": sorted(n50, key=lambda x: x["chg"], reverse=True)[:5],
-        "n50_losers": sorted(n50, key=lambda x: x["chg"])[:5],
-        "n500_gainers": sorted(n500, key=lambda x: x["chg"], reverse=True)[:10],
-        "n500_losers": sorted(n500, key=lambda x: x["chg"])[:10]
-    }
-    TICKER_CACHE["timestamp"] = now
-    TICKER_CACHE["data"] = feed
-    return feed
-
-# --- AUTH ENDPOINTS ---
 class VerifyPinRequest(BaseModel):
     pin: str
 
@@ -413,7 +405,6 @@ def export_audit_excel(x_app_pin: str = Header(None)):
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
-# --- QUANT RADAR ENGINE ---
 class StockRequest(BaseModel):
     ticker: str
 
@@ -422,7 +413,6 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
     raw_query = req.ticker.strip().upper()
     log_activity(str(x_app_pin), user.get("name", "User"), "SEARCH_TICKER", raw_query)
 
-    # Check aliases
     alias_dict = {"CGCL": "CAPRIGLOBAL.NS", "CAPRI": "CAPRIGLOBAL.NS", "M&M": "M&M.NS"}
     resolved_symbol = alias_dict.get(raw_query)
     
@@ -453,7 +443,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
     if hist is None or stock is None:
         raise HTTPException(
             status_code=404,
-            detail=f"No NSE/BSE price data found for '{raw_query}'. Use the smart suggestion dropdown."
+            detail=f"No price data found for '{raw_query}'. Use the smart suggestion dropdown."
         )
 
     try:
