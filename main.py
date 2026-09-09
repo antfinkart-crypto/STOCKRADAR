@@ -18,7 +18,7 @@ LOGS_FILE = "activity_logs.json"
 
 DEFAULT_DATA = {
     "pins": {
-        "999999": {
+        "942040": {
             "role": "admin",
             "name": "Rana Sahib (Admin)",
             "mobile": "Master Desk",
@@ -43,10 +43,15 @@ def load_db():
     try:
         with open(DB_FILE, "r") as f:
             data = json.load(f)
-            # Auto-migrate legacy 9999 to 999999 if needed
-            if "9999" in data.get("pins", {}):
-                admin_info = data["pins"].pop("9999")
-                data["pins"]["999999"] = admin_info
+            # Auto migrate any legacy admin keys to 942040
+            for old_k in ["9999", "999999"]:
+                if old_k in data.get("pins", {}):
+                    admin_profile = data["pins"].pop(old_k)
+                    data["pins"]["942040"] = admin_profile
+                    with open(DB_FILE, "w") as fw:
+                        json.dump(data, fw, indent=2)
+            if "942040" not in data.get("pins", {}):
+                data["pins"]["942040"] = DEFAULT_DATA["pins"]["942040"]
                 with open(DB_FILE, "w") as fw:
                     json.dump(data, fw, indent=2)
             return data
@@ -96,7 +101,6 @@ def serve_home():
 def serve_manifest():
     return FileResponse("manifest.json")
 
-# --- AUTH ENDPOINTS ---
 class VerifyPinRequest(BaseModel):
     pin: str
 
@@ -124,7 +128,7 @@ def reset_pin(req: ResetPinRequest):
     clean_email = req.email.strip().lower()
     new_pin = req.new_pin.strip()
     
-    if len(new_pin) != 4:
+    if len(new_pin) != 4 or not new_pin.isdigit():
         raise HTTPException(status_code=400, detail="Client PIN must be exactly 4 digits.")
     
     matched_old_pin = None
@@ -135,16 +139,15 @@ def reset_pin(req: ResetPinRequest):
                 break
                 
     if not matched_old_pin:
-        raise HTTPException(status_code=404, detail="No client found with provided Mobile & Email.")
+        raise HTTPException(status_code=404, detail="No matching profile found with provided Mobile & Email.")
     
     user_data = db["pins"].pop(matched_old_pin)
     db["pins"][new_pin] = user_data
     save_db(db)
     
-    log_activity(new_pin, user_data["name"], "PIN_RESET", f"Client reset PIN to {new_pin}")
+    log_activity(new_pin, user_data["name"], "PIN_RESET", f"Client PIN reset to {new_pin}")
     return {"status": "success", "message": "PIN updated successfully. Unlock now."}
 
-# Admin Change Own PIN (6 Digits)
 class ChangeAdminPinRequest(BaseModel):
     new_pin: str
 
@@ -164,10 +167,9 @@ def change_admin_pin(req: ChangeAdminPinRequest, user=Depends(verify_pin), x_app
     
     db["pins"][new_pin] = admin_data
     save_db(db)
-    log_activity(new_pin, "Admin", "ADMIN_PIN_CHANGED", "Admin updated master access PIN")
+    log_activity(new_pin, "Admin", "ADMIN_PIN_CHANGED", f"Master PIN changed to {new_pin}")
     return {"status": "success", "new_pin": new_pin}
 
-# --- ADMIN USER MANAGEMENT & EXCEL EXPORT ---
 @app.get("/api/admin/users")
 def get_all_users(user=Depends(verify_pin)):
     if user["role"] != "admin":
@@ -197,7 +199,7 @@ def add_user(req: AddUserRequest, user=Depends(verify_pin)):
         "active": True
     }
     save_db(db)
-    log_activity("ADMIN", "Admin", "USER_CREATED", f"Added {req.name} ({req.mobile})")
+    log_activity("ADMIN", "Admin", "USER_CREATED", f"Created client {req.name} ({req.mobile})")
     return {"status": "success", "users": db}
 
 class ToggleUserRequest(BaseModel):
@@ -211,7 +213,7 @@ def toggle_user(req: ToggleUserRequest, user=Depends(verify_pin)):
     db = load_db()
     if req.pin in db.get("pins", {}):
         if db["pins"][req.pin]["role"] == "admin":
-            raise HTTPException(status_code=400, detail="Cannot revoke Master Admin.")
+            raise HTTPException(status_code=400, detail="Cannot toggle Master Admin.")
         db["pins"][req.pin]["active"] = req.active
         save_db(db)
         log_activity("ADMIN", "Admin", "USER_STATUS_CHANGE", f"PIN {req.pin} active={req.active}")
@@ -266,7 +268,6 @@ def export_audit_excel(x_app_pin: str = Header(None)):
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
-# --- CORE SCREENER WITH PEG & 20/50/200-EMA ---
 class StockRequest(BaseModel):
     ticker: str
 
@@ -334,7 +335,6 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         debt_equity = round(float((info.get('debtToEquity', 0.0) or 0.0) / 100), 2)
         pledged_pct = round(float(info.get('pnlPledged', 0.0) or 0.0), 2)
 
-        # Financials for ROE / ROCE Trends
         annual_fin = stock.financials
         annual_bs = stock.balance_sheet
         q_fin = stock.quarterly_financials
@@ -343,7 +343,6 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         roce_history = []
         roe_roce_labels = []
 
-        # Calculate ROCE & ROE across periods
         if not annual_fin.empty and not annual_bs.empty:
             try:
                 cols = list(annual_fin.columns[:4])
@@ -429,24 +428,27 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         inst_holding = round(float((info.get('heldPercentInstitutions', 0.0) or 0.0) * 100), 2)
         insider_holding = round(float((info.get('heldPercentInsiders', 0.0) or 0.0) * 100), 2)
 
+        # SWEET SPOT VALUATION FORMULA: P/E <= 35 OR (P/E <= 45 if PEG <= 1.5)
+        pe_qualifies_shooting = bool((0 < pe <= 35) or (0 < pe <= 45 and 0 < peg <= 1.5))
+        pe_qualifies_conviction = bool((0 < pe <= 40) or (0 < pe <= 48 and 0 < peg <= 1.8))
+
         is_shooting_star = bool(
-            (0 < pe <= 42) and (debt_equity <= 0.6) and
+            pe_qualifies_shooting and (debt_equity <= 0.6) and
             (roce_val >= 14.0 or roe_val >= 14.0) and
             (pledged_pct < 10.0) and (cmp >= ema_50_val) and 
             macd_bullish and (ocf_pat_ratio >= 0.7)
         )
 
-        status = "🌟 SHOOTING STAR READY" if is_shooting_star else ("✅ TOP CONVICTION" if (pe < 45 and debt_equity < 0.7 and ocf_pat_ratio >= 0.7) else ("❌ SCRUTINY / CASH WEAK" if ocf_pat_ratio < 0.7 else "⚠️ EXPENSIVE VALUATION"))
+        status = "🌟 SHOOTING STAR READY" if is_shooting_star else ("✅ TOP CONVICTION" if (pe_qualifies_conviction and debt_equity < 0.7 and ocf_pat_ratio >= 0.7) else ("❌ SCRUTINY / CASH WEAK" if ocf_pat_ratio < 0.7 else "⚠️ EXPENSIVE VALUATION"))
         
-        # Reason explanation for the popover
         if is_shooting_star:
-            category_reason = "Passed all 7 institutional criteria: P/E is fair (<=42), D/E is clean (<=0.6), Capital efficiency is strong (ROCE >=14%), Zero pledge risk, Trading above 50-EMA with bullish MACD, and Elite cash flow conversion (OCF/PAT >= 0.7x)."
+            category_reason = f"Passed institutional sweet spot: Valuation disciplined (P/E: {pe}, PEG: {peg or 'Fair'}), Clean leverage (D/E: {debt_equity} <= 0.6), Capital efficiency (ROCE: {roce_val}%), Trading above 50-EMA with bullish MACD, and Cash conversion (OCF/PAT: {ocf_pat_ratio}x >= 0.7x)."
         elif status == "✅ TOP CONVICTION":
-            category_reason = "Solid institutional fundamentals: P/E under 45, disciplined balance sheet (D/E < 0.7), and clean cash generation. Suitable for 2-3 quarters compounding runway."
+            category_reason = f"Strong compounder candidate: P/E {pe} with disciplined balance sheet (D/E < 0.7) and cash generation ({ocf_pat_ratio}x). Staged entry on supports recommended."
         elif "SCRUTINY" in status:
-            category_reason = f"Flagged under forensic scrutiny: OCF/PAT ratio is {ocf_pat_ratio}x (<0.7x threshold). Profit on books is not converting adequately into bank cash. Wait for working capital turnaround."
+            category_reason = f"Forensic scrutiny trigger: OCF/PAT ratio is {ocf_pat_ratio}x (<0.7x threshold). Paper profits are not converting adequately into bank liquidity."
         else:
-            category_reason = f"Current valuation multiples (P/E: {pe}, PEG: {peg}) leave minimal margin of safety for fresh institutional entry. Favorable risk-reward lies closer to support levels."
+            category_reason = f"Stretched valuation multiples (P/E: {pe}, PEG: {peg}). High risk-to-reward for fresh entries; wait for technical consolidation."
 
         macd_alert = "🔥 Fresh Bullish Cross" if macd_crossover else ("🟢 Bullish Trend" if macd_bullish else "🔴 Bearish Divergence")
 
