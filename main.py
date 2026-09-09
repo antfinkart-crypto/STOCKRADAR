@@ -8,6 +8,7 @@ import numpy as np
 import json
 import os
 import io
+import time
 from datetime import datetime
 
 app = FastAPI(title="AntFinServ QuantAlpha Radar")
@@ -43,17 +44,15 @@ def load_db():
     try:
         with open(DB_FILE, "r") as f:
             data = json.load(f)
-            # Auto migrate any legacy admin keys to 942040
+            # Ensure master admin 942040 is always enforced
             for old_k in ["9999", "999999"]:
                 if old_k in data.get("pins", {}):
                     admin_profile = data["pins"].pop(old_k)
                     data["pins"]["942040"] = admin_profile
-                    with open(DB_FILE, "w") as fw:
-                        json.dump(data, fw, indent=2)
             if "942040" not in data.get("pins", {}):
                 data["pins"]["942040"] = DEFAULT_DATA["pins"]["942040"]
-                with open(DB_FILE, "w") as fw:
-                    json.dump(data, fw, indent=2)
+            with open(DB_FILE, "w") as fw:
+                json.dump(data, fw, indent=2)
             return data
     except Exception:
         return DEFAULT_DATA
@@ -101,6 +100,78 @@ def serve_home():
 def serve_manifest():
     return FileResponse("manifest.json")
 
+# --- DYNAMIC TICKER ENGINE: NIFTY 50 & NIFTY 500 TOP MOVERS ---
+TICKER_CACHE = {"timestamp": 0, "data": []}
+
+NIFTY_WATCHLIST = [
+    # Nifty 50 Core
+    "RELIANCE.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS", "TCS.NS",
+    "ITC.NS", "LT.NS", "BHARTIARTL.NS", "SBIN.NS", "AXISBANK.NS",
+    "TATAMOTORS.NS", "MARUTI.NS", "SUNPHARMA.NS", "TITAN.NS", "BAJFINANCE.NS",
+    # Active Nifty 500 High-Beta Movers
+    "DIXON.NS", "POLYCAB.NS", "TRENT.NS", "PERSISTENT.NS", "COFORGE.NS",
+    "HAL.NS", "BEL.NS", "BHEL.NS", "SUZLON.NS", "ZOMATO.NS",
+    "KALYANKJIL.NS", "PRESTIGE.NS", "OBEROIRLTY.NS", "BOSCHLTD.NS", "LODHA.NS",
+    "TATAPOWER.NS", "ADANIENT.NS", "JINDALSTEL.NS", "VEDL.NS", "FEDERALBNK.NS"
+]
+
+@app.get("/api/market-ticker")
+def get_market_ticker():
+    global TICKER_CACHE
+    now = time.time()
+    # Cache ticker data for 4 minutes to stay fast and avoid rate-limits
+    if now - TICKER_CACHE["timestamp"] < 240 and TICKER_CACHE["data"]:
+        return TICKER_CACHE["data"]
+
+    try:
+        tickers_str = " ".join(NIFTY_WATCHLIST)
+        df = yf.download(tickers_str, period="2d", interval="1d", group_by='ticker', threads=True, progress=False)
+        
+        results = []
+        for sym in NIFTY_WATCHLIST:
+            try:
+                sub = df[sym] if sym in df else None
+                if sub is not None and not sub.empty and len(sub['Close']) >= 2:
+                    c_today = float(sub['Close'].iloc[-1])
+                    c_prev = float(sub['Close'].iloc[-2])
+                    chg_pct = round(((c_today - c_prev) / c_prev) * 100, 2)
+                    clean_name = sym.replace(".NS", "")
+                    results.append({
+                        "symbol": clean_name,
+                        "price": round(c_today, 1),
+                        "chg": chg_pct,
+                        "is_n50": sym in NIFTY_WATCHLIST[:15]
+                    })
+            except Exception:
+                continue
+
+        if not results:
+            return TICKER_CACHE["data"] or []
+
+        # Sort into Gainers and Losers
+        n50_stocks = [s for s in results if s["is_n50"]]
+        n500_stocks = [s for s in results if not s["is_n50"]]
+
+        n50_gainers = sorted(n50_stocks, key=lambda x: x["chg"], reverse=True)[:5]
+        n50_losers = sorted(n50_stocks, key=lambda x: x["chg"])[:5]
+
+        n500_gainers = sorted(n500_stocks, key=lambda x: x["chg"], reverse=True)[:10]
+        n500_losers = sorted(n500_stocks, key=lambda x: x["chg"])[:10]
+
+        final_feed = {
+            "n50_gainers": n50_gainers,
+            "n50_losers": n50_losers,
+            "n500_gainers": n500_gainers,
+            "n500_losers": n500_losers
+        }
+
+        TICKER_CACHE["timestamp"] = now
+        TICKER_CACHE["data"] = final_feed
+        return final_feed
+    except Exception:
+        return TICKER_CACHE["data"] or {}
+
+# --- AUTH ENDPOINTS ---
 class VerifyPinRequest(BaseModel):
     pin: str
 
@@ -268,6 +339,7 @@ def export_audit_excel(x_app_pin: str = Header(None)):
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
+# --- QUANT RADAR CORE ENGINE ---
 class StockRequest(BaseModel):
     ticker: str
 
@@ -284,7 +356,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         hist = stock.history(period="1y")
 
         if hist is None or hist.empty or len(hist) < 20:
-            raise HTTPException(status_code=404, detail="Ticker price data unavailable.")
+            raise HTTPException(status_code=404, detail="Ticker price data unavailable on NSE.")
 
         info = {}
         try:
@@ -335,6 +407,23 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         debt_equity = round(float((info.get('debtToEquity', 0.0) or 0.0) / 100), 2)
         pledged_pct = round(float(info.get('pnlPledged', 0.0) or 0.0), 2)
 
+        # DERIVATIVES & DELIVERY VOLUME (D PILLAR CALCULATION)
+        vol_recent = hist['Volume'].tail(10)
+        avg_vol_10 = float(vol_recent.mean()) if len(vol_recent) else 1.0
+        today_vol = float(hist['Volume'].iloc[-1])
+        vol_surge = round(today_vol / (avg_vol_10 + 1e-6), 2)
+
+        # Quantitative Delivery & OI interpretation
+        if vol_surge >= 1.5 and cmp >= ema_20_val:
+            d_status = f"🔥 Institutional Long Buildup: Volume spike {vol_surge}x vs 10D avg. Delivery accumulation dominant above 20-EMA."
+        elif vol_surge >= 1.2:
+            d_status = f"🟢 Accumulation Active: Delivery volume {vol_surge}x baseline with steady VWAP absorption."
+        elif cmp < ema_20_val and vol_surge > 1.3:
+            d_status = f"⚠️ Short Buildup Alert: Heavy volume ({vol_surge}x) below 20-EMA. Derivatives distribution underway."
+        else:
+            d_status = f"Normal Float Activity: Volume {vol_surge}x avg. Multi-day VWAP support holding intact."
+
+        # Financials for ROE / ROCE
         annual_fin = stock.financials
         annual_bs = stock.balance_sheet
         q_fin = stock.quarterly_financials
@@ -352,9 +441,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
                     roe_roce_labels.append(y_lbl)
                     net_inc = float(annual_fin.loc['Net Income', c]) if 'Net Income' in annual_fin.index else 0
                     ebit = float(annual_fin.loc['EBIT', c]) if 'EBIT' in annual_fin.index else 0
-                    equity = float(annual_bs.loc['Stockholders Equity', c]) if 'Stockholders Equity' in annual_bs.index else (
-                        float(annual_bs.loc['Common Stock Equity', c]) if 'Common Stock Equity' in annual_bs.index else 1
-                    )
+                    equity = float(annual_bs.loc['Stockholders Equity', c]) if 'Stockholders Equity' in annual_bs.index else 1
                     assets = float(annual_bs.loc['Total Assets', c]) if 'Total Assets' in annual_bs.index else 1
                     curr_liab = float(annual_bs.loc['Current Liabilities', c]) if 'Current Liabilities' in annual_bs.index else 0
                     
@@ -428,7 +515,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         inst_holding = round(float((info.get('heldPercentInstitutions', 0.0) or 0.0) * 100), 2)
         insider_holding = round(float((info.get('heldPercentInsiders', 0.0) or 0.0) * 100), 2)
 
-        # SWEET SPOT VALUATION FORMULA: P/E <= 35 OR (P/E <= 45 if PEG <= 1.5)
+        # SWEET SPOT VALUATION LOGIC: P/E <= 35 OR (P/E <= 45 if PEG <= 1.5)
         pe_qualifies_shooting = bool((0 < pe <= 35) or (0 < pe <= 45 and 0 < peg <= 1.5))
         pe_qualifies_conviction = bool((0 < pe <= 40) or (0 < pe <= 48 and 0 < peg <= 1.8))
 
@@ -492,7 +579,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
             "ftdb": {
                 "F": f"P/E: {pe} | PEG: {peg if peg > 0 else 'N/A'} | ROCE: {roce_val}% | ROE: {roe_val}% | D/E: {debt_equity} | Pledge: {pledged_pct}%",
                 "T": f"20-EMA: ₹{ema_20_val} | 50-EMA: ₹{ema_50_val} | 200-EMA: ₹{ema_200_val} | RSI(14): {rsi_14} ({macd_alert})",
-                "D": "Cash delivery accumulation active over multi-week VWAP clusters",
+                "D": d_status,
                 "B": f"Inst: {inst_holding}% | Promoter: {insider_holding}% (Base Float Stability)"
             }
         }

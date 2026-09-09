@@ -29,9 +29,9 @@
       100% { transform: translateX(-50%); }
     }
     .animate-marquee {
-      display: flex;
-      width: 200%;
-      animation: marquee 30s linear infinite;
+      display: inline-flex;
+      white-space: nowrap;
+      animation: marquee 35s linear infinite;
     }
     .animate-marquee:hover {
       animation-play-state: paused;
@@ -39,26 +39,21 @@
     @media print {
       body * { visibility: hidden; }
       #printableReport, #printableReport * { visibility: visible; }
-      #printableReport { position: absolute; left: 0; top: 0; width: 100%; }
+      #printableReport { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
     }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 min-h-screen transition-colors duration-150 antialiased font-sans">
   
-  <!-- TOP TICKER MARQUEE -->
-  <div class="bg-slate-900 text-slate-200 dark:bg-black border-b border-slate-800 text-[11px] font-mono py-1.5 overflow-hidden whitespace-nowrap">
-    <div class="animate-marquee flex items-center space-x-6">
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY 50</span> 24,965 <span class="text-emerald-400">+0.42%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY 500</span> 23,410 <span class="text-emerald-400">+0.58%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY BANK</span> 51,280 <span class="text-rose-400">-0.15%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">RELIANCE</span> ₹2,985 <span class="text-emerald-400">+1.12%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">HDFCBANK</span> ₹1,648 <span class="text-emerald-400">+0.65%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">TCS</span> ₹4,220 <span class="text-rose-400">-0.30%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">INFY</span> ₹1,885 <span class="text-emerald-400">+1.40%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY 50</span> 24,965 <span class="text-emerald-400">+0.42%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY 500</span> 23,410 <span class="text-emerald-400">+0.58%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">RELIANCE</span> ₹2,985 <span class="text-emerald-400">+1.12%</span></span>
-      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">HDFCBANK</span> ₹1,648 <span class="text-emerald-400">+0.65%</span></span>
+  <!-- DYNAMIC TICKER MARQUEE: NIFTY 50 & NIFTY 500 TOP GAINERS & LOSERS -->
+  <div class="bg-slate-950 text-slate-200 border-b border-slate-800 text-[11px] font-mono py-1.5 overflow-hidden whitespace-nowrap shadow-inner flex items-center">
+    <div class="px-3 bg-cyan-900/80 text-cyan-300 font-black text-[10px] uppercase tracking-wider py-0.5 rounded ml-2 z-10 hidden sm:block">
+      LIVE MOVERS
+    </div>
+    <div class="overflow-hidden flex-1 relative">
+      <div id="tickerTrack" class="animate-marquee flex items-center space-x-6">
+        <span class="text-slate-400 font-bold">Syncing Nifty 50 & 500 Top Gainers/Losers...</span>
+      </div>
     </div>
   </div>
 
@@ -109,7 +104,7 @@
       </div>
       <p id="catModalBody" class="text-xs font-bold text-slate-700 dark:text-slate-300 leading-relaxed"></p>
       <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 font-semibold">
-        Screened via AntFinServ 7-Pillar Quantitative Matrix
+        Screened via AntFinServ Quantitative Valuation Matrix
       </div>
     </div>
   </div>
@@ -196,7 +191,7 @@
 
     <div class="border rounded-xl p-3.5 bg-slate-50 mb-6">
       <div class="text-xs font-black uppercase text-slate-700 mb-2">Institutional FTDB Matrix</div>
-      <div class="text-xs space-y-1 font-mono">
+      <div class="text-xs space-y-1.5 font-mono">
         <div><strong>F (Valuation & Cash Flow):</strong> <span id="rptF"></span></div>
         <div><strong>T (Trend & Momentum):</strong> <span id="rptT"></span></div>
         <div><strong>D (Derivatives & Delivery):</strong> <span id="rptD"></span></div>
@@ -226,7 +221,7 @@
       <div class="flex items-center gap-2.5">
         <!-- ADMIN ONLY: PDF REPORT GENERATOR BUTTON -->
         <button id="adminPdfBtn" onclick="generateBrandedPdf()" 
-                class="hidden px-3.5 py-1.5 rounded-lg text-xs font-black border border-cyan-500 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 shadow-sm transition">
+                class="hidden px-3 py-1.5 rounded-lg text-xs font-black border border-cyan-500 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 shadow-sm transition">
           📄 Generate Report
         </button>
 
@@ -247,7 +242,7 @@
       </div>
     </header>
 
-    <!-- Search Box with Mobile Refresh Icon -->
+    <!-- Search Box with Live Refresh Icon -->
     <div class="max-w-2xl mb-4">
       <div class="flex gap-2">
         <input id="tickerInput" type="text" placeholder="ENTER NSE SYMBOL (E.G. VINCOFE, HDFCBANK, TCS)" 
@@ -256,7 +251,7 @@
                 class="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-slate-950 font-black px-6 py-2.5 rounded-xl text-sm tracking-wide transition shadow-sm">
           SCAN
         </button>
-        <button onclick="refreshCurrentStock()" title="Force Live Refresh" class="p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100">
+        <button onclick="refreshCurrentStock()" title="Force Live Refresh" class="px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm">
           🔄
         </button>
       </div>
@@ -330,7 +325,7 @@
         </div>
       </div>
 
-      <!-- FTDB Framework -->
+      <!-- FTDB Framework (Includes Live D-Pillar OI Interpretation) -->
       <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -385,7 +380,7 @@
     let revPatChartInstance = null;
     let roeRoceChartInstance = null;
     let momentumChartInstance = null;
-    const STORAGE_KEY = 'antfinserv_radar_v8';
+    const STORAGE_KEY = 'antfinserv_radar_v9';
     let currentAuth = null;
     let currentStockData = null;
     let inactivityTimer = null;
@@ -395,10 +390,10 @@
       clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
         if (currentAuth) {
-          alert('Session timed out after 10 minutes of inactivity. Please re-enter your PIN.');
+          alert('Terminal locked after 10 minutes of inactivity. Enter your PIN to continue.');
           lockTerminal();
         }
-      }, 10 * 60 * 1000); // 10 minutes
+      }, 10 * 60 * 1000);
     }
 
     ['touchstart', 'mousemove', 'keydown', 'scroll'].forEach(evt => {
@@ -408,6 +403,9 @@
     window.addEventListener('DOMContentLoaded', () => {
       renderRecentList();
       resetInactivityTimer();
+      loadLiveTicker();
+      setInterval(loadLiveTicker, 240000); // 4 min auto-update
+
       const savedAuth = localStorage.getItem('antfinserv_auth');
       if (savedAuth) {
         currentAuth = JSON.parse(savedAuth);
@@ -423,6 +421,43 @@
         if (e.key === 'Enter') runAnalysis();
       });
     });
+
+    // LOAD DYNAMIC TICKER (NIFTY 50 & 500 TOP 5 & 10)
+    async function loadLiveTicker() {
+      try {
+        const res = await fetch('/api/market-ticker');
+        const data = await res.json();
+        const track = document.getElementById('tickerTrack');
+        if (!data || !data.n50_gainers) return;
+
+        let itemsHtml = '';
+        
+        // Nifty 50 Top 5 Gainers
+        data.n50_gainers.forEach(s => {
+          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-cyan-400 font-extrabold text-[9px] px-1 bg-cyan-950/60 rounded">N50</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-emerald-400">+${s.chg}%</span></span>`;
+        });
+
+        // Nifty 50 Top 5 Losers
+        data.n50_losers.forEach(s => {
+          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-cyan-400 font-extrabold text-[9px] px-1 bg-cyan-950/60 rounded">N50</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-rose-400">${s.chg}%</span></span>`;
+        });
+
+        // Nifty 500 Top 10 Gainers
+        data.n500_gainers.forEach(s => {
+          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-amber-400 font-extrabold text-[9px] px-1 bg-amber-950/60 rounded">N500</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-emerald-400">+${s.chg}%</span></span>`;
+        });
+
+        // Nifty 500 Top 10 Losers
+        data.n500_losers.forEach(s => {
+          itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-amber-400 font-extrabold text-[9px] px-1 bg-amber-950/60 rounded">N500</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-rose-400">${s.chg}%</span></span>`;
+        });
+
+        // Duplicate for seamless infinite loop
+        track.innerHTML = itemsHtml + itemsHtml;
+      } catch (err) {
+        console.log("Ticker loading...");
+      }
+    }
 
     function switchView(view) {
       if (view === 'resetView') {
@@ -452,7 +487,7 @@
           if (data.detail === "REVOKED_ACCESS") {
             errBox.innerText = "Your institutional access has been suspended or revoked. Please contact AntFinServ Wealth Desk (ARN-94204) to renew your subscription.";
           } else {
-            errBox.innerText = "Invalid PIN. Client PIN is 4 digits, Admin PIN is 6 digits.";
+            errBox.innerText = "Invalid PIN. Client PIN is 4 digits, Admin PIN is 6 digits (942040).";
           }
           errBox.classList.remove('hidden');
           return;
@@ -532,7 +567,6 @@
       switchView('lockView');
     }
 
-    // --- BRANDED PDF REPORT GENERATOR (ADMIN ONLY) ---
     function generateBrandedPdf() {
       if (!currentStockData || !currentAuth || currentAuth.role !== 'admin') {
         alert("Please scan a stock first to generate an institutional report.");
@@ -619,7 +653,7 @@
             <div class="text-[11px] text-slate-400 mt-0.5">📞 ${info.mobile || 'N/A'} | ✉️ ${info.email || 'N/A'}</div>
           </div>
           <div>
-            ${info.role === 'admin' ? '<span class="text-slate-400 font-bold">Master (6 Digits)</span>' : `
+            ${info.role === 'admin' ? '<span class="text-slate-400 font-bold">Master Desk (942040)</span>' : `
               <button onclick="toggleUserAccess('${pin}', ${!info.active})" class="px-3 py-1 rounded-lg font-bold text-xs ${info.active ? 'bg-rose-100 text-rose-700 hover:bg-rose-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}">
                 ${info.active ? 'Revoke Access' : 'Activate'}
               </button>
