@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuantAlpha Terminal</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 min-h-screen transition-colors duration-150 antialiased font-sans">
+  
+  <div class="w-[95%] max-w-[1440px] mx-auto py-5">
+    
+    <!-- Header -->
+    <header class="flex justify-between items-center pb-4 mb-5 border-b border-slate-300 dark:border-slate-800">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <div class="h-3 w-3 rounded-full bg-cyan-600 dark:bg-cyan-400"></div>
+          <h1 class="text-2xl font-black tracking-tight text-slate-950 dark:text-white">QUANTALPHA POSITIONAL RADAR</h1>
+        </div>
+        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5 pl-5.5">
+          Institutional FTDB Framework (2–3 Quarters Compounding Model)
+        </p>
+      </div>
+
+      <button onclick="toggleTheme()" id="themeBtn" 
+              class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-black border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-sm transition">
+        <span id="themeIcon">🌙</span> <span id="themeText">Dark</span>
+      </button>
+    </header>
+
+    <!-- Search Box -->
+    <div class="max-w-2xl mb-4">
+      <div class="flex gap-2">
+        <input id="tickerInput" type="text" placeholder="ENTER NSE SYMBOL (E.G. VINCOFE, HDFCBANK, TCS)" 
+               class="flex-1 bg-white dark:bg-slate-900 text-slate-950 dark:text-white placeholder:text-slate-400 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-base font-black font-mono uppercase focus:outline-none focus:border-cyan-600 shadow-sm">
+        <button onclick="runAnalysis()" id="analyzeBtn" 
+                class="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-slate-950 font-black px-6 py-2.5 rounded-xl text-sm tracking-wide transition shadow-sm">
+          SCAN
+        </button>
+      </div>
+    </div>
+
+    <!-- Recent Chips -->
+    <div id="recentSection" class="mb-4 hidden">
+      <div class="flex gap-2 items-center flex-wrap" id="recentList"></div>
+    </div>
+
+    <!-- Output Dashboard -->
+    <div id="output" class="hidden space-y-4">
+
+      <!-- Executive Overview Card -->
+      <div id="mainCard" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition">
+        <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
+          
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-3 flex-wrap">
+              <h2 id="stockName" class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight"></h2>
+              <span id="stockTicker" class="text-xs font-black font-mono px-2.5 py-0.5 rounded bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-cyan-300 border border-slate-300 dark:border-slate-700"></span>
+              <div id="badgeContainer">
+                <span id="stockStatus" class="text-xs font-black px-3 py-1 rounded-full inline-block"></span>
+              </div>
+            </div>
+            <div id="instHolding" class="text-xs font-bold text-slate-500 dark:text-slate-400"></div>
+          </div>
+
+          <div class="flex items-baseline md:flex-col md:items-end justify-between gap-1">
+            <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Current Market Price</span>
+            <div id="cmpPrice" class="text-3xl md:text-4xl font-black font-mono text-slate-950 dark:text-cyan-400"></div>
+          </div>
+
+        </div>
+
+        <!-- Quick Momentum & Cash Flow Quality Strip -->
+        <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-3 text-xs font-bold">
+          <div class="flex items-center gap-2">
+            <span class="text-slate-500 uppercase text-[10px]">Momentum:</span>
+            <span id="macdAlert" class="font-mono font-black px-2.5 py-0.5 rounded text-xs"></span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-slate-500 uppercase text-[10px]">Cash Flow Quality (OCF/PAT):</span>
+            <span id="ocfRatioVal" class="font-mono font-black px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300"></span>
+            <span id="ocfStatusBadge" class="text-[11px] text-slate-500 font-semibold"></span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-slate-500 uppercase text-[10px]">Promoter Pledge:</span>
+            <span id="pledgeVal" class="font-mono font-black px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-emerald-700 dark:text-emerald-400"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISUAL ANALYTICS CHARTS (Row 1: Revenue/PAT + Capital Efficiency) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        
+        <!-- Chart A: Quarterly Revenue & PAT with Interactive Hover -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Quarterly Revenue vs PAT Trend</h3>
+            <span class="text-[10px] font-mono font-bold text-slate-400">Values in ₹ Crores</span>
+          </div>
+          <div class="h-56">
+            <canvas id="revPatChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart B: Technical Momentum (MACD + RSI with 90/10 Bands) -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Momentum Engine (MACD & RSI 14)</h3>
+            <span class="text-[10px] font-mono font-bold text-slate-400">Hover across dates</span>
+          </div>
+          <div class="h-56">
+            <canvas id="momentumChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FTDB Multi-Quarter Evaluation Framework -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          
+          <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div class="text-cyan-700 dark:text-cyan-400 font-black text-xs uppercase mb-1">F - Fundamentals</div>
+            <p id="ftdbF" class="text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed"></p>
+          </div>
+
+          <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div class="text-cyan-700 dark:text-cyan-400 font-black text-xs uppercase mb-1">T - Technical Trend</div>
+            <p id="ftdbT" class="text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed"></p>
+          </div>
+
+          <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div class="text-cyan-700 dark:text-cyan-400 font-black text-xs uppercase mb-1">D - Derivatives & Flow</div>
+            <p id="ftdbD" class="text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed"></p>
+          </div>
+
+          <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div class="text-cyan-700 dark:text-cyan-400 font-black text-xs uppercase mb-1">B - Big Money Footprint</div>
+            <p id="ftdbB" class="text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed"></p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Execution Guardrails & Targets -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+          
+          <div class="bg-slate-50 dark:bg-slate-950/70 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span class="text-rose-600 dark:text-rose-400 font-black text-[11px] uppercase tracking-wider">Base Stop-Loss</span>
+            <div id="slLevel" class="font-black text-2xl mt-1 text-rose-700 dark:text-rose-300 font-mono"></div>
+          </div>
+
+          <div class="bg-slate-50 dark:bg-slate-950/70 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span class="text-slate-500 font-black text-[11px] uppercase tracking-wider">Support (S1)</span>
+            <div id="supportLevel" class="font-black text-2xl mt-1 text-slate-900 dark:text-slate-100 font-mono"></div>
+          </div>
+
+          <div class="bg-slate-50 dark:bg-slate-950/70 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span class="text-emerald-700 dark:text-emerald-400 font-black text-[11px] uppercase tracking-wider">Target 1 / Target 2</span>
+            <div id="targetLevels" class="font-black text-2xl mt-1 text-emerald-700 dark:text-emerald-300 font-mono"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let revPatChartInstance = null;
+    let momentumChartInstance = null;
+    const STORAGE_KEY = 'quantalpha_terminal_v4';
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.contains('dark');
+      const themeIcon = document.getElementById('themeIcon');
+      const themeText = document.getElementById('themeText');
+
+      if (isDark) {
+        html.classList.remove('dark');
+        themeIcon.innerText = "🌙";
+        themeText.innerText = "Dark";
+      } else {
+        html.classList.add('dark');
+        themeIcon.innerText = "☀️";
+        themeText.innerText = "Light";
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderRecentList();
+      document.getElementById('tickerInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') runAnalysis();
+      });
+    });
+
+    function getHistory() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    }
+
+    function saveToHistory(stockData) {
+      let history = getHistory();
+      history = history.filter(item => item.ticker !== stockData.ticker);
+      history.unshift(stockData);
+      if (history.length > 8) history = history.slice(0, 8);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      renderRecentList();
+    }
+
+    function clearHistory() {
+      localStorage.removeItem(STORAGE_KEY);
+      renderRecentList();
+    }
+
+    function renderRecentList() {
+      const history = getHistory();
+      const section = document.getElementById('recentSection');
+      const container = document.getElementById('recentList');
+      
+      if (!history || history.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+
+      section.classList.remove('hidden');
+      container.innerHTML = '';
+
+      history.forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = `text-xs px-3 py-1 rounded-lg border font-mono font-black transition flex items-center gap-1.5 ${
+          item.is_shooting_star 
+            ? 'bg-amber-100 text-amber-900 border-amber-400 dark:bg-amber-950/70 dark:border-amber-500 dark:text-amber-300'
+            : 'bg-white text-slate-800 border-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200'
+        }`;
+        btn.innerHTML = `${item.is_shooting_star ? '⭐ ' : ''}${item.ticker} <span class="text-[10px] font-bold text-slate-400">₹${item.cmp}</span>`;
+        btn.onclick = () => renderData(item);
+        container.appendChild(btn);
+      });
+    }
+
+    async function runAnalysis(manualTicker = null) {
+      const tickerInput = document.getElementById('tickerInput');
+      const ticker = manualTicker || tickerInput.value.trim();
+      if (!ticker) return;
+
+      const btn = document.getElementById('analyzeBtn');
+      btn.innerText = "SCANNING...";
+      btn.disabled = true;
+      
+      try {
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ticker: ticker })
+        });
+        
+        if (!res.ok) {
+          alert('Symbol not recognized on NSE. Verify ticker.');
+          return;
+        }
+
+        const data = await res.json();
+        saveToHistory(data);
+        renderData(data);
+      } catch (err) {
+        alert('Server unreachable. Ensure Python backend is active.');
+      } finally {
+        btn.innerText = "SCAN";
+        btn.disabled = false;
+      }
+    }
+
+    function renderCharts(data) {
+      // 1. Chart A: Quarterly Revenue vs PAT
+      const ctx1 = document.getElementById('revPatChart').getContext('2d');
+      if (revPatChartInstance) revPatChartInstance.destroy();
+
+      const qLabels = (data.q_labels && data.q_labels.length) ? data.q_labels : ['Q1', 'Q2', 'Q3', 'Q4'];
+      const qRev = (data.q_rev_series && data.q_rev_series.length) ? data.q_rev_series : [100, 120, 130, 150];
+      const qPat = (data.q_pat_series && data.q_pat_series.length) ? data.q_pat_series : [10, 15, 18, 22];
+
+      revPatChartInstance = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: qLabels,
+          datasets: [
+            {
+              label: 'Revenue (₹ Cr)',
+              data: qRev,
+              backgroundColor: 'rgba(8, 145, 178, 0.85)',
+              borderRadius: 6
+            },
+            {
+              label: 'Net PAT (₹ Cr)',
+              data: qPat,
+              backgroundColor: 'rgba(16, 185, 129, 0.85)',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { labels: { font: { weight: 'bold', size: 11 } } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return ` ${context.dataset.label}: ₹${context.raw.toLocaleString('en-IN')} Cr`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(150, 150, 150, 0.12)' }, ticks: { font: { size: 10 } } },
+            x: { ticks: { font: { weight: 'bold', size: 11 } } }
+          }
+        }
+      });
+
+      // 2. Chart B: MACD & RSI (Hover-over synced across all dates + 90/10 Bands)
+      const ctx2 = document.getElementById('momentumChart').getContext('2d');
+      if (momentumChartInstance) momentumChartInstance.destroy();
+
+      const upperBand90 = new Array(data.chart_dates.length).fill(90);
+      const lowerBand10 = new Array(data.chart_dates.length).fill(10);
+
+      momentumChartInstance = new Chart(ctx2, {
+        data: {
+          labels: data.chart_dates,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'MACD Hist',
+              data: data.hist_series,
+              backgroundColor: data.hist_series.map(v => v >= 0 ? 'rgba(16, 185, 129, 0.75)' : 'rgba(244, 63, 94, 0.75)'),
+              yAxisID: 'y'
+            },
+            {
+              type: 'line',
+              label: 'RSI (14)',
+              data: data.rsi_series,
+              borderColor: '#f59e0b',
+              borderWidth: 2,
+              tension: 0.1,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              yAxisID: 'y1'
+            },
+            {
+              type: 'line',
+              label: 'Band 90 (Climax)',
+              data: upperBand90,
+              borderColor: 'rgba(239, 68, 68, 0.7)',
+              borderWidth: 1.5,
+              borderDash: [5, 4],
+              pointRadius: 0,
+              pointHoverRadius: 0,
+              yAxisID: 'y1'
+            },
+            {
+              type: 'line',
+              label: 'Band 10 (Capitulation)',
+              data: lowerBand10,
+              borderColor: 'rgba(34, 197, 94, 0.7)',
+              borderWidth: 1.5,
+              borderDash: [5, 4],
+              pointRadius: 0,
+              pointHoverRadius: 0,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { 
+            legend: { 
+              labels: { 
+                font: { weight: 'bold', size: 10 },
+                filter: item => item.text.includes('RSI') || item.text.includes('MACD')
+              } 
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  if (ctx.dataset.label.includes('Band')) return null;
+                  return ` ${ctx.dataset.label}: ${ctx.raw}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: { position: 'left', grid: { display: false }, ticks: { font: { size: 9 } } },
+            y1: { 
+              position: 'right', 
+              min: 0, 
+              max: 100, 
+              ticks: { stepSize: 20, font: { weight: 'bold', size: 9 } },
+              grid: { color: 'rgba(150, 150, 150, 0.12)' } 
+            },
+            x: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function renderData(data) {
+      document.getElementById('stockName').innerText = data.name;
+      document.getElementById('stockTicker').innerText = data.ticker + '.NS';
+      document.getElementById('cmpPrice').innerText = '₹' + data.cmp.toLocaleString('en-IN');
+      document.getElementById('instHolding').innerText = data.institutions;
+      
+      const macdEl = document.getElementById('macdAlert');
+      macdEl.innerText = data.macd_alert;
+      if (data.macd_alert.includes('Fresh')) {
+        macdEl.className = 'font-mono font-black px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-300 text-xs animate-pulse';
+      } else if (data.macd_alert.includes('Bullish')) {
+        macdEl.className = 'font-mono font-black px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-400 text-xs';
+      } else {
+        macdEl.className = 'font-mono font-black px-2.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950 dark:text-rose-400 text-xs';
+      }
+
+      document.getElementById('ocfRatioVal').innerText = `${data.ocf_pat_ratio}x`;
+      document.getElementById('ocfStatusBadge').innerText = `(${data.ocf_status})`;
+      document.getElementById('pledgeVal').innerText = data.pledged;
+
+      const mainCard = document.getElementById('mainCard');
+      const statusEl = document.getElementById('stockStatus');
+
+      if (data.is_shooting_star) {
+        mainCard.className = 'bg-gradient-to-r from-amber-50 via-white to-amber-50 dark:from-slate-900 dark:via-amber-950/40 dark:to-slate-900 border-2 border-amber-400 rounded-2xl p-5 transition shadow-lg';
+        statusEl.innerText = '🌟 SHOOTING STAR READY';
+        statusEl.className = 'text-xs font-black px-3 py-1 rounded-full bg-amber-400 text-slate-950 border border-amber-300 shadow uppercase tracking-wider';
+      } else if (data.status.includes('TOP')) {
+        mainCard.className = 'bg-white dark:bg-slate-900 border border-emerald-400 dark:border-emerald-800/60 rounded-2xl p-5 transition shadow-sm';
+        statusEl.innerText = data.status;
+        statusEl.className = 'text-xs font-black px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300';
+      } else {
+        mainCard.className = 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-5 transition shadow-sm';
+        statusEl.innerText = data.status;
+        statusEl.className = 'text-xs font-black px-3 py-1 rounded-full bg-slate-200 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-300';
+      }
+
+      document.getElementById('ftdbF').innerText = data.ftdb.F;
+      document.getElementById('ftdbT').innerText = data.ftdb.T;
+      document.getElementById('ftdbD').innerText = data.ftdb.D;
+      document.getElementById('ftdbB').innerText = data.ftdb.B;
+
+      document.getElementById('slLevel').innerText = '₹' + data.stop_loss.toLocaleString('en-IN');
+      document.getElementById('supportLevel').innerText = '₹' + data.support.toLocaleString('en-IN');
+      document.getElementById('targetLevels').innerText = `₹${data.targets.T1.toLocaleString('en-IN')} / ₹${data.targets.T2.toLocaleString('en-IN')}`;
+      
+      renderCharts(data);
+      document.getElementById('output').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

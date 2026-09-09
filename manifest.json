@@ -1,0 +1,15 @@
+{
+  "name": "QuantAlpha Positional Radar",
+  "short_name": "QuantAlpha",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0891b2",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2422/2422796.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
