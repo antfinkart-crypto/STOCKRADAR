@@ -45,14 +45,14 @@
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 min-h-screen transition-colors duration-150 antialiased font-sans">
   
-  <!-- DYNAMIC TICKER MARQUEE: NIFTY 50 & NIFTY 500 TOP GAINERS & LOSERS -->
+  <!-- DYNAMIC LIVE TICKER MARQUEE -->
   <div class="bg-slate-950 text-slate-200 border-b border-slate-800 text-[11px] font-mono py-1.5 overflow-hidden whitespace-nowrap shadow-inner flex items-center">
     <div class="px-3 bg-cyan-900/80 text-cyan-300 font-black text-[10px] uppercase tracking-wider py-0.5 rounded ml-2 z-10 hidden sm:block">
       LIVE MOVERS
     </div>
     <div class="overflow-hidden flex-1 relative">
       <div id="tickerTrack" class="animate-marquee flex items-center space-x-6">
-        <span class="text-slate-400 font-bold">Syncing Nifty 50 & 500 Top Gainers/Losers...</span>
+        <span class="text-slate-400 font-bold">Syncing Nifty 50 & 500 Top Movers...</span>
       </div>
     </div>
   </div>
@@ -219,13 +219,11 @@
       </div>
 
       <div class="flex items-center gap-2.5">
-        <!-- ADMIN ONLY: PDF REPORT GENERATOR BUTTON -->
         <button id="adminPdfBtn" onclick="generateBrandedPdf()" 
                 class="hidden px-3 py-1.5 rounded-lg text-xs font-black border border-cyan-500 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 shadow-sm transition">
           📄 Generate Report
         </button>
 
-        <!-- ADMIN DESK BUTTON -->
         <button id="adminTriggerBtn" onclick="openAdminModal()" 
                 class="hidden px-3.5 py-1.5 rounded-lg text-xs font-black border border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-400 hover:bg-amber-400/20 shadow-sm transition">
           ⚙️ Access Manager
@@ -242,11 +240,20 @@
       </div>
     </header>
 
-    <!-- Search Box with Live Refresh Icon -->
-    <div class="max-w-2xl mb-4">
+    <!-- SMART SEARCH BOX WITH AUTOCOMPLETE TYPEAHEAD DROPDOWN -->
+    <div class="max-w-2xl mb-4 relative">
       <div class="flex gap-2">
-        <input id="tickerInput" type="text" placeholder="ENTER NSE SYMBOL (E.G. VINCOFE, HDFCBANK, TCS)" 
-               class="flex-1 bg-white dark:bg-slate-900 text-slate-950 dark:text-white placeholder:text-slate-400 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-base font-black font-mono uppercase focus:outline-none focus:border-cyan-600 shadow-sm">
+        <div class="relative flex-1">
+          <input id="tickerInput" type="text" autocomplete="off"
+                 placeholder="ENTER COMPANY NAME OR SYMBOL (E.G. CAPRI, TATA, M&M, TCS)" 
+                 class="w-full bg-white dark:bg-slate-900 text-slate-950 dark:text-white placeholder:text-slate-400 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-base font-black uppercase focus:outline-none focus:border-cyan-600 shadow-sm">
+          
+          <!-- FLOATING SUGGESTION CARD CONTAINER -->
+          <div id="suggestBox" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden hidden">
+            <div id="suggestList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
+          </div>
+        </div>
+
         <button onclick="runAnalysis()" id="analyzeBtn" 
                 class="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white dark:text-slate-950 font-black px-6 py-2.5 rounded-xl text-sm tracking-wide transition shadow-sm">
           SCAN
@@ -380,10 +387,11 @@
     let revPatChartInstance = null;
     let roeRoceChartInstance = null;
     let momentumChartInstance = null;
-    const STORAGE_KEY = 'antfinserv_radar_v9';
+    const STORAGE_KEY = 'antfinserv_radar_v10';
     let currentAuth = null;
     let currentStockData = null;
     let inactivityTimer = null;
+    let searchDebounce = null;
 
     // 10-MINUTE INACTIVITY AUTO-LOCK
     function resetInactivityTimer() {
@@ -404,7 +412,7 @@
       renderRecentList();
       resetInactivityTimer();
       loadLiveTicker();
-      setInterval(loadLiveTicker, 240000); // 4 min auto-update
+      setInterval(loadLiveTicker, 240000);
 
       const savedAuth = localStorage.getItem('antfinserv_auth');
       if (savedAuth) {
@@ -417,12 +425,82 @@
       document.getElementById('pinInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') submitPin();
       });
-      document.getElementById('tickerInput').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') runAnalysis();
+
+      // SMART TYPEAHEAD SEARCH EVENT LISTENERS
+      const tickerInput = document.getElementById('tickerInput');
+      tickerInput.addEventListener('input', handleTypeahead);
+      tickerInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          hideSuggestions();
+          runAnalysis();
+        }
+      });
+
+      // Close suggestion dropdown if clicked outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#tickerInput') && !e.target.closest('#suggestBox')) {
+          hideSuggestions();
+        }
       });
     });
 
-    // LOAD DYNAMIC TICKER (NIFTY 50 & 500 TOP 5 & 10)
+    // TYPEAHEAD SEARCH LOGIC
+    function handleTypeahead(e) {
+      const q = e.target.value.trim();
+      clearTimeout(searchDebounce);
+      if (q.length < 2) {
+        hideSuggestions();
+        return;
+      }
+
+      searchDebounce = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/search-companies?q=${encodeURIComponent(q)}`);
+          const items = await res.json();
+          renderSuggestions(items);
+        } catch (err) {
+          hideSuggestions();
+        }
+      }, 180); // 180ms debounce
+    }
+
+    function renderSuggestions(items) {
+      const box = document.getElementById('suggestBox');
+      const list = document.getElementById('suggestList');
+      if (!items || items.length === 0) {
+        hideSuggestions();
+        return;
+      }
+
+      list.innerHTML = '';
+      items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer flex justify-between items-center transition';
+        row.innerHTML = `
+          <div>
+            <div class="text-xs font-black text-slate-900 dark:text-white tracking-tight">${item.name}</div>
+            <div class="text-[10px] font-bold text-slate-400 mt-0.5">${item.sector || 'NSE/BSE Listed'}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs font-black px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800">${item.display}</span>
+            <span class="text-slate-400 font-bold text-xs">➔</span>
+          </div>
+        `;
+        row.onclick = () => {
+          document.getElementById('tickerInput').value = item.display;
+          hideSuggestions();
+          runAnalysis(item.symbol);
+        };
+        list.appendChild(row);
+      });
+      box.classList.remove('hidden');
+    }
+
+    function hideSuggestions() {
+      document.getElementById('suggestBox').classList.add('hidden');
+    }
+
+    // LOAD DYNAMIC TICKER
     async function loadLiveTicker() {
       try {
         const res = await fetch('/api/market-ticker');
@@ -431,31 +509,22 @@
         if (!data || !data.n50_gainers) return;
 
         let itemsHtml = '';
-        
-        // Nifty 50 Top 5 Gainers
         data.n50_gainers.forEach(s => {
           itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-cyan-400 font-extrabold text-[9px] px-1 bg-cyan-950/60 rounded">N50</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-emerald-400">+${s.chg}%</span></span>`;
         });
-
-        // Nifty 50 Top 5 Losers
         data.n50_losers.forEach(s => {
           itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-cyan-400 font-extrabold text-[9px] px-1 bg-cyan-950/60 rounded">N50</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-rose-400">${s.chg}%</span></span>`;
         });
-
-        // Nifty 500 Top 10 Gainers
         data.n500_gainers.forEach(s => {
           itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-amber-400 font-extrabold text-[9px] px-1 bg-amber-950/60 rounded">N500</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-emerald-400">+${s.chg}%</span></span>`;
         });
-
-        // Nifty 500 Top 10 Losers
         data.n500_losers.forEach(s => {
           itemsHtml += `<span class="flex items-center gap-1 font-bold"><span class="text-amber-400 font-extrabold text-[9px] px-1 bg-amber-950/60 rounded">N500</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="text-rose-400">${s.chg}%</span></span>`;
         });
 
-        // Duplicate for seamless infinite loop
         track.innerHTML = itemsHtml + itemsHtml;
       } catch (err) {
-        console.log("Ticker loading...");
+        console.log("Ticker syncing...");
       }
     }
 
@@ -622,7 +691,7 @@
         body: JSON.stringify({ new_pin: newPin })
       });
       if (res.ok) {
-        alert(`Admin PIN updated to ${newPin}. Please use this to login from now on.`);
+        alert(`Admin PIN updated to ${newPin}. Use this to login from now on.`);
         currentAuth.pin = newPin;
         localStorage.setItem('antfinserv_auth', JSON.stringify(currentAuth));
         document.getElementById('adminNewPinInput').value = '';
@@ -797,7 +866,7 @@
         }
 
         if (!res.ok) {
-          alert('Symbol not recognized on NSE.');
+          alert('Stock not found. Try typing company name in the search box.');
           return;
         }
 
@@ -813,7 +882,6 @@
     }
 
     function renderCharts(data) {
-      // Rev vs PAT
       const ctx1 = document.getElementById('revPatChart').getContext('2d');
       if (revPatChartInstance) revPatChartInstance.destroy();
 
@@ -841,7 +909,6 @@
         }
       });
 
-      // ROE vs ROCE Trend
       const ctx2 = document.getElementById('roeRoceChart').getContext('2d');
       if (roeRoceChartInstance) roeRoceChartInstance.destroy();
 
@@ -869,7 +936,6 @@
         }
       });
 
-      // Momentum Engine
       const ctx3 = document.getElementById('momentumChart').getContext('2d');
       if (momentumChartInstance) momentumChartInstance.destroy();
 
