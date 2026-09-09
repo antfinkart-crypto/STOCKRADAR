@@ -23,9 +23,48 @@
       }
     }
   </script>
+  <style>
+    @keyframes marquee {
+      0% { transform: translateX(0%); }
+      100% { transform: translateX(-50%); }
+    }
+    .animate-marquee {
+      display: flex;
+      width: 200%;
+      animation: marquee 30s linear infinite;
+    }
+    .animate-marquee:hover {
+      animation-play-state: paused;
+    }
+  </style>
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 min-h-screen transition-colors duration-150 antialiased font-sans">
   
+  <!-- TOP BENCHMARK TICKER MARQUEE -->
+  <div class="bg-slate-900 text-slate-200 dark:bg-black border-b border-slate-800 text-[11px] font-mono py-1.5 overflow-hidden whitespace-nowrap shadow-inner">
+    <div class="animate-marquee flex items-center space-x-6">
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY 50</span> 24,965 <span class="text-emerald-400">+0.42%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY 500</span> 23,410 <span class="text-emerald-400">+0.58%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY BANK</span> 51,280 <span class="text-rose-400">-0.15%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">RELIANCE</span> ₹2,985 <span class="text-emerald-400">+1.12%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">HDFCBANK</span> ₹1,648 <span class="text-emerald-400">+0.65%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">TCS</span> ₹4,220 <span class="text-rose-400">-0.30%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">INFY</span> ₹1,885 <span class="text-emerald-400">+1.40%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">ICICIBANK</span> ₹1,230 <span class="text-emerald-400">+0.85%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">BHARTIARTL</span> ₹1,560 <span class="text-emerald-400">+0.90%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">L&T</span> ₹3,620 <span class="text-rose-400">-0.45%</span></span>
+      <!-- Duplicate set for seamless infinite loop -->
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY 50</span> 24,965 <span class="text-emerald-400">+0.42%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY 500</span> 23,410 <span class="text-emerald-400">+0.58%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">NIFTY BANK</span> 51,280 <span class="text-rose-400">-0.15%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">RELIANCE</span> ₹2,985 <span class="text-emerald-400">+1.12%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">HDFCBANK</span> ₹1,648 <span class="text-emerald-400">+0.65%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">TCS</span> ₹4,220 <span class="text-rose-400">-0.30%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">INFY</span> ₹1,885 <span class="text-emerald-400">+1.40%</span></span>
+      <span class="flex items-center gap-1 font-bold"><span class="text-slate-400">ICICIBANK</span> ₹1,230 <span class="text-emerald-400">+0.85%</span></span>
+    </div>
+  </div>
+
   <!-- PIN LOCK & RESET MODAL -->
   <div id="pinLockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md px-4">
     <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-7 max-w-sm w-full shadow-2xl text-center">
@@ -36,10 +75,10 @@
           🔒
         </div>
         <h2 class="text-xl font-black text-slate-950 dark:text-white tracking-tight">AntFinServ Terminal</h2>
-        <p class="text-xs font-bold text-slate-500 mt-0.5 mb-5">Institutional Positional Intelligence</p>
+        <p class="text-xs font-bold text-slate-500 mt-0.5 mb-5">Admin (6-Digit) / Client (4-Digit)</p>
         
         <input id="pinInput" type="password" maxlength="6" placeholder="• • • •" 
-               class="w-full text-center tracking-[0.6em] text-3xl font-black font-mono py-3 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-cyan-600 mb-2">
+               class="w-full text-center tracking-[0.5em] text-3xl font-black font-mono py-3 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-cyan-600 mb-2">
         
         <div id="pinError" class="text-xs font-bold text-rose-600 mb-3 hidden leading-snug text-left bg-rose-50 dark:bg-rose-950/50 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900"></div>
 
@@ -48,23 +87,23 @@
         </button>
 
         <div class="mt-4 flex justify-between items-center text-[11px] font-bold text-slate-400">
-          <button onclick="switchView('resetView')" class="hover:text-cyan-600 underline">Forgot PIN / Reset?</button>
+          <button onclick="switchView('resetView')" class="hover:text-cyan-600 underline">Client Reset PIN?</button>
           <span>ARN-94204</span>
         </div>
       </div>
 
       <!-- Reset PIN Self-Service View -->
       <div id="resetView" class="hidden text-left">
-        <h3 class="text-base font-black text-slate-900 dark:text-white mb-1">Reset Access PIN</h3>
-        <p class="text-xs text-slate-500 mb-4 font-semibold">Verify your registered contact details:</p>
+        <h3 class="text-base font-black text-slate-900 dark:text-white mb-1">Reset Client PIN</h3>
+        <p class="text-xs text-slate-500 mb-4 font-semibold">Enter registered contact info to set new 4-digit PIN:</p>
 
         <div class="space-y-2 mb-4">
           <input id="resetMobile" type="text" placeholder="Registered 10-Digit Mobile" class="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
           <input id="resetEmail" type="email" placeholder="Registered Email Address" class="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
-          <input id="resetNewPin" type="text" maxlength="6" placeholder="Set New 4-Digit PIN" class="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
+          <input id="resetNewPin" type="password" maxlength="4" placeholder="Set New 4-Digit PIN" class="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-center">
         </div>
 
-        <div id="resetMsg" class="text-xs font-bold mb-3 hidden p-2 rounded-xl"></div>
+        <div id="resetMsg" class="text-xs font-bold mb-3 hidden p-2.5 rounded-xl"></div>
 
         <div class="flex gap-2">
           <button onclick="switchView('lockView')" class="w-1/3 bg-slate-200 dark:bg-slate-800 font-bold py-2.5 rounded-xl text-xs">Back</button>
@@ -75,9 +114,23 @@
     </div>
   </div>
 
+  <!-- CATEGORY REASON EXPLAINER MODAL -->
+  <div id="categoryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4 hidden">
+    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
+        <h3 id="catModalTitle" class="text-sm font-black text-slate-900 dark:text-white">Institutional Categorization</h3>
+        <button onclick="closeCategoryModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+      </div>
+      <p id="catModalBody" class="text-xs font-bold text-slate-700 dark:text-slate-300 leading-relaxed"></p>
+      <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 font-semibold">
+        Screened via AntFinServ 7-Pillar Quantitative Matrix
+      </div>
+    </div>
+  </div>
+
   <!-- ADMIN CONSOLE MODAL -->
   <div id="adminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4 hidden">
-    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[90vh] flex flex-col">
+    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[92vh] flex flex-col">
       <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
         <div>
           <h3 class="text-base font-black text-slate-950 dark:text-white">Admin Desk & Client Logs</h3>
@@ -86,20 +139,25 @@
         <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
       </div>
 
-      <!-- Action Bar: Download Audit Excel -->
-      <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3">
-        <span class="text-xs font-bold text-slate-600 dark:text-slate-300">Complete Usage & Search Registry</span>
-        <button onclick="downloadExcelAudit()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+      <!-- Action Bar: Download Excel & Reset Admin 6-Digit PIN -->
+      <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3 gap-2">
+        <button onclick="downloadExcelAudit()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
           📊 Export Excel (.xlsx)
         </button>
+        <div class="flex items-center gap-1.5">
+          <input id="adminNewPinInput" type="password" maxlength="6" placeholder="New 6-Digit PIN" class="w-32 text-xs font-mono font-bold px-2 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-center">
+          <button onclick="changeAdminPin()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black px-3 py-1.5 rounded-xl shadow-sm">
+            Update Admin PIN
+          </button>
+        </div>
       </div>
 
-      <!-- Add New Client with Lead Info -->
+      <!-- Add New Client with 4-Digit PIN -->
       <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3 space-y-2">
-        <span class="text-[11px] font-black uppercase text-cyan-600 tracking-wider">Create New Client Access</span>
+        <span class="text-[11px] font-black uppercase text-cyan-600 tracking-wider">Create New Client Access (4-Digit PIN)</span>
         <div class="grid grid-cols-2 gap-2">
           <input id="newClientName" type="text" placeholder="Client Name" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <input id="newClientPin" type="text" maxlength="6" placeholder="Assign PIN" class="text-xs font-mono font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <input id="newClientPin" type="text" maxlength="4" placeholder="Assign 4-Digit PIN" class="text-xs font-mono font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
           <input id="newClientMobile" type="tel" placeholder="Mobile Number" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
           <input id="newClientEmail" type="email" placeholder="Email Address" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
         </div>
@@ -165,8 +223,10 @@
             <div class="flex items-center gap-3 flex-wrap">
               <h2 id="stockName" class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight"></h2>
               <span id="stockTicker" class="text-xs font-black font-mono px-2.5 py-0.5 rounded bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-cyan-300 border border-slate-300 dark:border-slate-700"></span>
-              <div id="badgeContainer">
-                <span id="stockStatus" class="text-xs font-black px-3 py-1 rounded-full inline-block"></span>
+              
+              <!-- Clickable Badge to View Categorization Reason -->
+              <div id="badgeContainer" class="cursor-pointer" onclick="openCategoryModal()" title="Click to see categorization logic">
+                <span id="stockStatus" class="text-xs font-black px-3 py-1 rounded-full inline-flex items-center gap-1.5"></span>
               </div>
             </div>
             <div id="instHolding" class="text-xs font-bold text-slate-500 dark:text-slate-400"></div>
@@ -194,26 +254,37 @@
         </div>
       </div>
 
-      <!-- CHARTS -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- VISUAL ANALYTICS CHARTS (3 CHARTS: REV/PAT, ROE/ROCE, MOMENTUM) -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Chart 1: Revenue vs PAT -->
         <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
           <div class="flex items-center justify-between mb-2">
-            <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Quarterly Revenue vs PAT Trend</h3>
-            <span class="text-[10px] font-mono font-bold text-slate-400">Values in ₹ Crores</span>
+            <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Quarterly Revenue & PAT</h3>
+            <span class="text-[10px] font-mono font-bold text-slate-400">₹ Crores</span>
           </div>
-          <div class="h-56"><canvas id="revPatChart"></canvas></div>
+          <div class="h-52"><canvas id="revPatChart"></canvas></div>
         </div>
 
+        <!-- Chart 2: ROE & ROCE Historical Trend -->
         <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
           <div class="flex items-center justify-between mb-2">
-            <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Momentum Engine (MACD & RSI 14)</h3>
-            <span class="text-[10px] font-mono font-bold text-slate-400">Hover across dates</span>
+            <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">ROE vs ROCE Trend</h3>
+            <span class="text-[10px] font-mono font-bold text-slate-400">% Compounding</span>
           </div>
-          <div class="h-56"><canvas id="momentumChart"></canvas></div>
+          <div class="h-52"><canvas id="roeRoceChart"></canvas></div>
+        </div>
+
+        <!-- Chart 3: Momentum Engine (MACD & RSI) -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">MACD & RSI(14)</h3>
+            <span class="text-[10px] font-mono font-bold text-slate-400">Bands 90/10</span>
+          </div>
+          <div class="h-52"><canvas id="momentumChart"></canvas></div>
         </div>
       </div>
 
-      <!-- FTDB Framework -->
+      <!-- FTDB Multi-Quarter Evaluation Framework -->
       <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -235,7 +306,7 @@
         </div>
       </div>
 
-      <!-- Execution Levels -->
+      <!-- Execution Guardrails & Targets -->
       <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -252,14 +323,26 @@
           </div>
         </div>
       </div>
+
+      <!-- Explainer Footnote Card for Clients -->
+      <div class="bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-900/50 rounded-2xl p-4 text-xs font-bold text-cyan-950 dark:text-cyan-200 flex items-start gap-3">
+        <div class="text-lg">💡</div>
+        <div>
+          <div class="font-black uppercase tracking-wider text-[11px] text-cyan-700 dark:text-cyan-400 mb-0.5">Understanding Categorization</div>
+          <p id="explainerText" class="leading-relaxed"></p>
+        </div>
+      </div>
+
     </div>
   </div>
 
   <script>
     let revPatChartInstance = null;
+    let roeRoceChartInstance = null;
     let momentumChartInstance = null;
-    const STORAGE_KEY = 'antfinserv_radar_v6';
+    const STORAGE_KEY = 'antfinserv_radar_v7';
     let currentAuth = null;
+    let currentStockData = null;
 
     window.addEventListener('DOMContentLoaded', () => {
       renderRecentList();
@@ -307,7 +390,7 @@
           if (data.detail === "REVOKED_ACCESS") {
             errBox.innerText = "Your institutional access has been suspended or revoked. Please contact AntFinServ Wealth Desk (ARN-94204) to renew your subscription.";
           } else {
-            errBox.innerText = "Invalid PIN. Please check your credentials or use the Reset option.";
+            errBox.innerText = "Invalid PIN. Client PIN is 4 digits, Admin PIN is 6 digits.";
           }
           errBox.classList.remove('hidden');
           return;
@@ -317,7 +400,7 @@
         localStorage.setItem('antfinserv_auth', JSON.stringify(currentAuth));
         unlockUI(currentAuth);
       } catch (err) {
-        errBox.innerText = "Connection failed. Backend starting up...";
+        errBox.innerText = "Connection failed. Server warming up...";
         errBox.classList.remove('hidden');
       }
     }
@@ -331,7 +414,7 @@
       msgBox.classList.add('hidden');
       if (!mobile || !email || !newPin) {
         msgBox.className = "text-xs font-bold mb-3 p-2.5 rounded-xl bg-rose-100 text-rose-800";
-        msgBox.innerText = "Please fill Mobile, Email and desired 4-Digit PIN.";
+        msgBox.innerText = "Please fill Mobile, Email and 4-Digit PIN.";
         msgBox.classList.remove('hidden');
         return;
       }
@@ -357,7 +440,7 @@
           switchView('lockView');
           document.getElementById('pinInput').value = newPin;
           submitPin();
-        }, 1500);
+        }, 1200);
       } catch (err) {
         msgBox.className = "text-xs font-bold mb-3 p-2.5 rounded-xl bg-rose-100 text-rose-800";
         msgBox.innerText = "Server unreachable.";
@@ -368,7 +451,6 @@
     function unlockUI(auth) {
       document.getElementById('pinLockModal').classList.add('hidden');
       document.getElementById('pinError').classList.add('hidden');
-      // STRICT ADMIN VISIBILITY
       if (auth.role === 'admin') {
         document.getElementById('adminTriggerBtn').classList.remove('hidden');
       } else {
@@ -385,6 +467,18 @@
       switchView('lockView');
     }
 
+    // --- CATEGORY MODAL LOGIC ---
+    function openCategoryModal() {
+      if (!currentStockData) return;
+      document.getElementById('catModalTitle').innerText = currentStockData.status;
+      document.getElementById('catModalBody').innerText = currentStockData.category_reason;
+      document.getElementById('categoryModal').classList.remove('hidden');
+    }
+
+    function closeCategoryModal() {
+      document.getElementById('categoryModal').classList.add('hidden');
+    }
+
     // --- ADMIN ACCESS MANAGER ---
     async function openAdminModal() {
       if (!currentAuth || currentAuth.role !== 'admin') return;
@@ -394,6 +488,28 @@
 
     function closeAdminModal() {
       document.getElementById('adminModal').classList.add('hidden');
+    }
+
+    async function changeAdminPin() {
+      const newPin = document.getElementById('adminNewPinInput').value.trim();
+      if (newPin.length !== 6 || isNaN(newPin)) {
+        alert("Admin PIN must be exactly 6 digits.");
+        return;
+      }
+      const res = await fetch('/api/admin/change-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-App-Pin': currentAuth.pin },
+        body: JSON.stringify({ new_pin: newPin })
+      });
+      if (res.ok) {
+        alert(`Admin PIN updated to ${newPin}. Please use this to login from now on.`);
+        currentAuth.pin = newPin;
+        localStorage.setItem('antfinserv_auth', JSON.stringify(currentAuth));
+        document.getElementById('adminNewPinInput').value = '';
+        loadAdminUsers();
+      } else {
+        alert("Failed to update Admin PIN.");
+      }
     }
 
     async function loadAdminUsers() {
@@ -417,7 +533,7 @@
             <div class="text-[11px] text-slate-400 mt-0.5">📞 ${info.mobile || 'N/A'} | ✉️ ${info.email || 'N/A'}</div>
           </div>
           <div>
-            ${pin === '9999' ? '<span class="text-slate-400 font-bold">Master</span>' : `
+            ${info.role === 'admin' ? '<span class="text-slate-400 font-bold">Master (6 Digits)</span>' : `
               <button onclick="toggleUserAccess('${pin}', ${!info.active})" class="px-3 py-1 rounded-lg font-bold text-xs ${info.active ? 'bg-rose-100 text-rose-700 hover:bg-rose-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}">
                 ${info.active ? 'Revoke Access' : 'Activate'}
               </button>
@@ -446,6 +562,10 @@
         alert('Please fill Name, PIN, Mobile and Email.');
         return;
       }
+      if (pin.length !== 4) {
+        alert('Client PIN must be exactly 4 digits.');
+        return;
+      }
 
       await fetch('/api/admin/add-user', {
         method: 'POST',
@@ -464,7 +584,7 @@
       window.location.href = `/api/admin/export-audit-excel?x_app_pin=${currentAuth.pin}`;
     }
 
-    // --- CORE RADAR ENGINE ---
+    // --- DASHBOARD CHARTS & DATA RENDERING ---
     function toggleTheme() {
       const html = document.documentElement;
       const isDark = html.classList.contains('dark');
@@ -543,7 +663,7 @@
         });
         
         if (res.status === 401 || res.status === 403) {
-          alert('Access Revoked by Administrator. Please contact AntFinServ Wealth Desk.');
+          alert('Access Revoked by Administrator.');
           lockTerminal();
           return;
         }
@@ -565,6 +685,7 @@
     }
 
     function renderCharts(data) {
+      // 1. Revenue vs PAT
       const ctx1 = document.getElementById('revPatChart').getContext('2d');
       if (revPatChartInstance) revPatChartInstance.destroy();
 
@@ -577,127 +698,88 @@
         data: {
           labels: qLabels,
           datasets: [
-            {
-              label: 'Revenue (₹ Cr)',
-              data: qRev,
-              backgroundColor: 'rgba(8, 145, 178, 0.85)',
-              borderRadius: 6
-            },
-            {
-              label: 'Net PAT (₹ Cr)',
-              data: qPat,
-              backgroundColor: 'rgba(16, 185, 129, 0.85)',
-              borderRadius: 6
-            }
+            { label: 'Rev (₹ Cr)', data: qRev, backgroundColor: 'rgba(8, 145, 178, 0.85)', borderRadius: 5 },
+            { label: 'PAT (₹ Cr)', data: qPat, backgroundColor: 'rgba(16, 185, 129, 0.85)', borderRadius: 5 }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { labels: { font: { weight: 'bold', size: 11 } } },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => ` ${ctx.dataset.label}: ₹${ctx.raw.toLocaleString('en-IN')} Cr`
-              }
-            }
-          },
+          plugins: { legend: { labels: { font: { weight: 'bold', size: 9 } } } },
           scales: {
-            y: { beginAtZero: true, grid: { color: 'rgba(150, 150, 150, 0.12)' }, ticks: { font: { size: 10 } } },
-            x: { ticks: { font: { weight: 'bold', size: 11 } } }
+            y: { grid: { color: 'rgba(150, 150, 150, 0.12)' }, ticks: { font: { size: 9 } } },
+            x: { ticks: { font: { weight: 'bold', size: 9 } } }
           }
         }
       });
 
-      const ctx2 = document.getElementById('momentumChart').getContext('2d');
+      // 2. ROE vs ROCE Trend
+      const ctx2 = document.getElementById('roeRoceChart').getContext('2d');
+      if (roeRoceChartInstance) roeRoceChartInstance.destroy();
+
+      const roeLabels = (data.roe_roce_labels && data.roe_roce_labels.length) ? data.roe_roce_labels : ['FY23', 'FY24', 'FY25', 'TTM'];
+      const roeData = (data.roe_history && data.roe_history.length) ? data.roe_history : [14, 15, 17, 18];
+      const roceData = (data.roce_history && data.roce_history.length) ? data.roce_history : [16, 18, 20, 22];
+
+      roeRoceChartInstance = new Chart(ctx2, {
+        type: 'line',
+        data: {
+          labels: roeLabels,
+          datasets: [
+            { label: 'ROCE %', data: roceData, borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.15)', borderWidth: 2, fill: true, tension: 0.3 },
+            { label: 'ROE %', data: roeData, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: { weight: 'bold', size: 9 } } } },
+          scales: {
+            y: { grid: { color: 'rgba(150, 150, 150, 0.12)' }, ticks: { font: { size: 9 } } },
+            x: { ticks: { font: { weight: 'bold', size: 9 } } }
+          }
+        }
+      });
+
+      // 3. Momentum Engine
+      const ctx3 = document.getElementById('momentumChart').getContext('2d');
       if (momentumChartInstance) momentumChartInstance.destroy();
 
       const upperBand90 = new Array(data.chart_dates.length).fill(90);
       const lowerBand10 = new Array(data.chart_dates.length).fill(10);
 
-      momentumChartInstance = new Chart(ctx2, {
+      momentumChartInstance = new Chart(ctx3, {
         data: {
           labels: data.chart_dates,
           datasets: [
-            {
-              type: 'bar',
-              label: 'MACD Hist',
-              data: data.hist_series,
-              backgroundColor: data.hist_series.map(v => v >= 0 ? 'rgba(16, 185, 129, 0.75)' : 'rgba(244, 63, 94, 0.75)'),
-              yAxisID: 'y'
-            },
-            {
-              type: 'line',
-              label: 'RSI (14)',
-              data: data.rsi_series,
-              borderColor: '#f59e0b',
-              borderWidth: 2,
-              tension: 0.1,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              yAxisID: 'y1'
-            },
-            {
-              type: 'line',
-              label: 'Band 90 (Climax)',
-              data: upperBand90,
-              borderColor: 'rgba(239, 68, 68, 0.7)',
-              borderWidth: 1.5,
-              borderDash: [5, 4],
-              pointRadius: 0,
-              pointHoverRadius: 0,
-              yAxisID: 'y1'
-            },
-            {
-              type: 'line',
-              label: 'Band 10 (Capitulation)',
-              data: lowerBand10,
-              borderColor: 'rgba(34, 197, 94, 0.7)',
-              borderWidth: 1.5,
-              borderDash: [5, 4],
-              pointRadius: 0,
-              pointHoverRadius: 0,
-              yAxisID: 'y1'
-            }
+            { type: 'bar', label: 'MACD', data: data.hist_series, backgroundColor: data.hist_series.map(v => v >= 0 ? 'rgba(16, 185, 129, 0.75)' : 'rgba(244, 63, 94, 0.75)'), yAxisID: 'y' },
+            { type: 'line', label: 'RSI(14)', data: data.rsi_series, borderColor: '#f59e0b', borderWidth: 2, tension: 0.1, pointRadius: 0, yAxisID: 'y1' },
+            { type: 'line', label: '90', data: upperBand90, borderColor: 'rgba(239, 68, 68, 0.7)', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, yAxisID: 'y1' },
+            { type: 'line', label: '10', data: lowerBand10, borderColor: 'rgba(34, 197, 94, 0.7)', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, yAxisID: 'y1' }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
           plugins: { 
             legend: { 
               labels: { 
-                font: { weight: 'bold', size: 10 },
-                filter: item => item.text.includes('RSI') || item.text.includes('MACD')
+                font: { weight: 'bold', size: 9 },
+                filter: item => item.text === 'MACD' || item.text === 'RSI(14)'
               } 
-            },
-            tooltip: {
-              callbacks: {
-                label: function(ctx) {
-                  if (ctx.dataset.label.includes('Band')) return null;
-                  return ` ${ctx.dataset.label}: ${ctx.raw}`;
-                }
-              }
             }
           },
           scales: {
-            y: { position: 'left', grid: { display: false }, ticks: { font: { size: 9 } } },
-            y1: { 
-              position: 'right', 
-              min: 0, 
-              max: 100, 
-              ticks: { stepSize: 20, font: { weight: 'bold', size: 9 } },
-              grid: { color: 'rgba(150, 150, 150, 0.12)' } 
-            },
-            x: { ticks: { font: { size: 10 } } }
+            y: { position: 'left', grid: { display: false }, ticks: { font: { size: 8 } } },
+            y1: { position: 'right', min: 0, max: 100, ticks: { stepSize: 25, font: { size: 8 } }, grid: { color: 'rgba(150, 150, 150, 0.12)' } },
+            x: { ticks: { font: { size: 9 } } }
           }
         }
       });
     }
 
     function renderData(data) {
+      currentStockData = data;
       document.getElementById('stockName').innerText = data.name;
       document.getElementById('stockTicker').innerText = data.ticker + '.NS';
       document.getElementById('cmpPrice').innerText = '₹' + data.cmp.toLocaleString('en-IN');
@@ -719,18 +801,21 @@
 
       const mainCard = document.getElementById('mainCard');
       const statusEl = document.getElementById('stockStatus');
+      const explainerEl = document.getElementById('explainerText');
+
+      explainerEl.innerText = `${data.status}: ${data.category_reason}`;
 
       if (data.is_shooting_star) {
         mainCard.className = 'bg-gradient-to-r from-amber-50 via-white to-amber-50 dark:from-slate-900 dark:via-amber-950/40 dark:to-slate-900 border-2 border-amber-400 rounded-2xl p-5 transition shadow-lg';
-        statusEl.innerText = '🌟 SHOOTING STAR READY';
+        statusEl.innerText = '🌟 SHOOTING STAR READY ℹ️';
         statusEl.className = 'text-xs font-black px-3 py-1 rounded-full bg-amber-400 text-slate-950 border border-amber-300 shadow uppercase tracking-wider';
       } else if (data.status.includes('TOP')) {
         mainCard.className = 'bg-white dark:bg-slate-900 border border-emerald-400 dark:border-emerald-800/60 rounded-2xl p-5 transition shadow-sm';
-        statusEl.innerText = data.status;
+        statusEl.innerText = data.status + ' ℹ️';
         statusEl.className = 'text-xs font-black px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300';
       } else {
         mainCard.className = 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-5 transition shadow-sm';
-        statusEl.innerText = data.status;
+        statusEl.innerText = data.status + ' ℹ️';
         statusEl.className = 'text-xs font-black px-3 py-1 rounded-full bg-slate-200 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-300';
       }
 
