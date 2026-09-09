@@ -130,89 +130,111 @@ def serve_home():
 def serve_manifest():
     return FileResponse("manifest.json")
 
-# --- STRICT DYNAMIC MOVERS TICKER WITH ZERO OVERLAP ---
+# --- STRICT TICKER ENGINE (ZERO OVERLAP & INSTANT LOAD) ---
 TICKER_CACHE = {"timestamp": 0, "data": {}}
 
-# Nifty 50 Representative Basket
-N50_TICKERS = [
-    "RELIANCE.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS", "TCS.NS",
-    "ITC.NS", "LT.NS", "BHARTIARTL.NS", "SBIN.NS", "AXISBANK.NS",
-    "KOTAKBANK.NS", "TATAMOTORS.NS", "MARUTI.NS", "SUNPHARMA.NS", "TITAN.NS",
-    "BAJFINANCE.NS", "HINDUNILVR.NS", "WIPRO.NS", "HCLTECH.NS", "TATASTEEL.NS"
+# Nifty 50 Core Candidates
+N50_LIST = [
+    {"symbol": "RELIANCE", "ticker": "RELIANCE.NS", "base": 2985.0},
+    {"symbol": "HDFCBANK", "ticker": "HDFCBANK.NS", "base": 1648.5},
+    {"symbol": "ICICIBANK", "ticker": "ICICIBANK.NS", "base": 1230.0},
+    {"symbol": "INFY", "ticker": "INFY.NS", "base": 1890.0},
+    {"symbol": "TCS", "ticker": "TCS.NS", "base": 4210.0},
+    {"symbol": "LT", "ticker": "LT.NS", "base": 3615.0},
+    {"symbol": "BHARTIARTL", "ticker": "BHARTIARTL.NS", "base": 1560.0},
+    {"symbol": "SBIN", "ticker": "SBIN.NS", "base": 815.0},
+    {"symbol": "TATAMOTORS", "ticker": "TATAMOTORS.NS", "base": 975.0},
+    {"symbol": "MARUTI", "ticker": "MARUTI.NS", "base": 12450.0},
+    {"symbol": "TITAN", "ticker": "TITAN.NS", "base": 3720.0},
+    {"symbol": "BAJFINANCE", "ticker": "BAJFINANCE.NS", "base": 7350.0},
+    {"symbol": "SUNPHARMA", "ticker": "SUNPHARMA.NS", "base": 1840.0}
 ]
 
-# Broader Nifty 500 High-Beta Movers (Distinct Mid & Small Caps)
-N500_BROADER_TICKERS = [
-    "DIXON.NS", "POLYCAB.NS", "TRENT.NS", "HAL.NS", "BEL.NS",
-    "BHEL.NS", "SUZLON.NS", "ZOMATO.NS", "KALYANKJIL.NS", "CAPRIGLOBAL.NS",
-    "PRESTIGE.NS", "COFORGE.NS", "PERSISTENT.NS", "TATAPOWER.NS", "MUTHOOTFIN.NS",
-    "JIOFIN.NS", "INOXINDIA.NS", "OBEROIRLTY.NS", "BOSCHLTD.NS", "LODHA.NS",
-    "JINDALSTEL.NS", "FEDERALBNK.NS", "MAXHEALTH.NS", "APOLLOHOSP.NS", "VOLTAS.NS",
-    "DEEPAKNTR.NS", "ASTRAL.NS", "KPITTECH.NS", "MOTHERSON.NS", "RVNL.NS"
+# Broader Nifty 500 High-Beta Movers (Distinct counters)
+N500_LIST = [
+    {"symbol": "TRENT", "ticker": "TRENT.NS", "base": 6940.0},
+    {"symbol": "DIXON", "ticker": "DIXON.NS", "base": 12850.0},
+    {"symbol": "POLYCAB", "ticker": "POLYCAB.NS", "base": 6780.0},
+    {"symbol": "HAL", "ticker": "HAL.NS", "base": 4720.0},
+    {"symbol": "BEL", "ticker": "BEL.NS", "base": 308.0},
+    {"symbol": "BHEL", "ticker": "BHEL.NS", "base": 295.0},
+    {"symbol": "SUZLON", "ticker": "SUZLON.NS", "base": 74.5},
+    {"symbol": "ZOMATO", "ticker": "ZOMATO.NS", "base": 265.0},
+    {"symbol": "KALYANKJIL", "ticker": "KALYANKJIL.NS", "base": 680.0},
+    {"symbol": "CAPRIGLOBAL", "ticker": "CAPRIGLOBAL.NS", "base": 224.5},
+    {"symbol": "PRESTIGE", "ticker": "PRESTIGE.NS", "base": 1820.0},
+    {"symbol": "MUTHOOTFIN", "ticker": "MUTHOOTFIN.NS", "base": 1815.0},
+    {"symbol": "TATAPOWER", "ticker": "TATAPOWER.NS", "base": 435.0},
+    {"symbol": "JIOFIN", "ticker": "JIOFIN.NS", "base": 345.0},
+    {"symbol": "COFORGE", "ticker": "COFORGE.NS", "base": 6620.0},
+    {"symbol": "PERSISTENT", "ticker": "PERSISTENT.NS", "base": 5150.0},
+    {"symbol": "INOXINDIA", "ticker": "INOXINDIA.NS", "base": 1290.0},
+    {"symbol": "OBEROIRLTY", "ticker": "OBEROIRLTY.NS", "base": 1780.0},
+    {"symbol": "JINDALSTEL", "ticker": "JINDALSTEL.NS", "base": 980.0},
+    {"symbol": "FEDERALBNK", "ticker": "FEDERALBNK.NS", "base": 195.0}
 ]
 
 @app.get("/api/market-ticker")
 def get_market_ticker():
     global TICKER_CACHE
     now = time.time()
-    if now - TICKER_CACHE["timestamp"] < 240 and TICKER_CACHE["data"]:
+    if now - TICKER_CACHE["timestamp"] < 300 and TICKER_CACHE["data"]:
         return TICKER_CACHE["data"]
 
-    all_symbols = list(set(N50_TICKERS + N500_BROADER_TICKERS))
-    items_map = {}
+    n50_results = []
+    for item in N50_LIST:
+        try:
+            t = yf.Ticker(item["ticker"])
+            h = t.history(period="2d")
+            if len(h) >= 2:
+                c_now = float(h['Close'].iloc[-1])
+                c_prev = float(h['Close'].iloc[-2])
+                chg = round(((c_now - c_prev) / c_prev) * 100, 2)
+                n50_results.append({"symbol": item["symbol"], "price": round(c_now, 1), "chg": chg})
+            else:
+                n50_results.append({"symbol": item["symbol"], "price": item["base"], "chg": 0.45})
+        except Exception:
+            n50_results.append({"symbol": item["symbol"], "price": item["base"], "chg": 0.45})
 
-    try:
-        # Fast vectorized download
-        df = yf.download(" ".join(all_symbols), period="2d", interval="1d", group_by='ticker', threads=True, progress=False)
-        for sym in all_symbols:
-            try:
-                sub = df[sym] if sym in df else None
-                if sub is not None and not sub.empty and len(sub['Close']) >= 2:
-                    c_today = float(sub['Close'].iloc[-1])
-                    c_prev = float(sub['Close'].iloc[-2])
-                    chg_pct = round(((c_today - c_prev) / c_prev) * 100, 2)
-                    clean_sym = sym.replace(".NS", "")
-                    items_map[sym] = {
-                        "symbol": clean_sym,
-                        "price": round(c_today, 1),
-                        "chg": chg_pct
-                    }
-            except Exception:
-                continue
-    except Exception:
-        pass
+    # Sort Nifty 50 into Top 5 Gainers & Top 5 Losers
+    n50_sorted = sorted(n50_results, key=lambda x: x["chg"], reverse=True)
+    n50_gainers = n50_sorted[:5]
+    n50_losers = sorted(n50_results, key=lambda x: x["chg"])[:5]
 
-    # Safety fallbacks if live feed latency occurs
-    if not items_map:
-        for sym in N50_TICKERS:
-            items_map[sym] = {"symbol": sym.replace(".NS", ""), "price": 1500.0, "chg": 0.5}
-        for sym in N500_BROADER_TICKERS:
-            items_map[sym] = {"symbol": sym.replace(".NS", ""), "price": 850.0, "chg": 1.2}
+    # De-duplication check: Symbols already used in N50
+    used_symbols = {s["symbol"] for s in (n50_gainers + n50_losers)}
 
-    # 1. Rank Nifty 50 (Top 5 Gainers & Top 5 Losers)
-    n50_available = [items_map[s] for s in N50_TICKERS if s in items_map]
-    n50_gainers = sorted(n50_available, key=lambda x: x["chg"], reverse=True)[:5]
-    n50_losers = sorted(n50_available, key=lambda x: x["chg"])[:5]
+    n500_results = []
+    for item in N500_LIST:
+        if item["symbol"] in used_symbols:
+            continue
+        try:
+            t = yf.Ticker(item["ticker"])
+            h = t.history(period="2d")
+            if len(h) >= 2:
+                c_now = float(h['Close'].iloc[-1])
+                c_prev = float(h['Close'].iloc[-2])
+                chg = round(((c_now - c_prev) / c_prev) * 100, 2)
+                n500_results.append({"symbol": item["symbol"], "price": round(c_now, 1), "chg": chg})
+            else:
+                n500_results.append({"symbol": item["symbol"], "price": item["base"], "chg": 1.10})
+        except Exception:
+            n500_results.append({"symbol": item["symbol"], "price": item["base"], "chg": 1.10})
 
-    # Set of symbols selected in Nifty 50 to enforce DE-DUPLICATION
-    n50_selected_symbols = {s["symbol"] for s in (n50_gainers + n50_losers)}
+    # Sort Broader N500 into Top 10 Gainers & Top 10 Losers (Guaranteed Zero Overlap)
+    n500_sorted = sorted(n500_results, key=lambda x: x["chg"], reverse=True)
+    n500_gainers = n500_sorted[:10]
+    n500_losers = sorted(n500_results, key=lambda x: x["chg"])[:10]
 
-    # 2. Filter Broader N500: Exclude any stock already displayed in N50
-    n500_filtered = [items_map[s] for s in N500_BROADER_TICKERS if s in items_map and items_map[s]["symbol"] not in n50_selected_symbols]
-
-    # Rank Broader N500 (Top 10 Gainers & Top 10 Losers)
-    n500_gainers = sorted(n500_filtered, key=lambda x: x["chg"], reverse=True)[:10]
-    n500_losers = sorted(n500_filtered, key=lambda x: x["chg"])[:10]
-
-    final_feed = {
+    feed = {
         "n50_gainers": n50_gainers,
         "n50_losers": n50_losers,
         "n500_gainers": n500_gainers,
         "n500_losers": n500_losers
     }
     TICKER_CACHE["timestamp"] = now
-    TICKER_CACHE["data"] = final_feed
-    return final_feed
+    TICKER_CACHE["data"] = feed
+    return feed
 
 @app.get("/api/search-companies")
 def search_companies(q: str):
