@@ -1,52 +1,84 @@
 from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 import yfinance as yf
 import pandas as pd
 import numpy as np
 import json
 import os
+import io
+from datetime import datetime
 
 app = FastAPI(title="AntFinServ QuantAlpha Radar")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# --- PERSISTENT USER & PIN REGISTRY ---
-USERS_FILE = "users_db.json"
+DB_FILE = "users_db.json"
+LOGS_FILE = "activity_logs.json"
 
-DEFAULT_USERS = {
+DEFAULT_DATA = {
     "pins": {
-        "9999": {"role": "admin", "name": "Rana Sahib (Admin)", "active": True},
-        "1234": {"role": "guest", "name": "Premium Client 1", "active": True},
-        "5678": {"role": "guest", "name": "Trial Client 2", "active": True}
+        "9999": {
+            "role": "admin",
+            "name": "Rana Sahib (Admin)",
+            "mobile": "Master Desk",
+            "email": "admin@antfinserv.com",
+            "active": True
+        },
+        "1234": {
+            "role": "guest",
+            "name": "Institutional Client",
+            "mobile": "9876543210",
+            "email": "client@investor.com",
+            "active": True
+        }
     }
 }
 
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "w") as f:
-            json.dump(DEFAULT_USERS, f, indent=2)
-        return DEFAULT_USERS
+def load_db():
+    if not os.path.exists(DB_FILE):
+        with open(DB_FILE, "w") as f:
+            json.dump(DEFAULT_DATA, f, indent=2)
+        return DEFAULT_DATA
     try:
-        with open(USERS_FILE, "r") as f:
+        with open(DB_FILE, "r") as f:
             return json.load(f)
     except Exception:
-        return DEFAULT_USERS
+        return DEFAULT_DATA
 
-def save_users(data):
-    with open(USERS_FILE, "w") as f:
+def save_db(data):
+    with open(DB_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-# --- AUTH VERIFICATION HELPER ---
+def log_activity(pin: str, user_name: str, action: str, details: str = ""):
+    logs = []
+    if os.path.exists(LOGS_FILE):
+        try:
+            with open(LOGS_FILE, "r") as f:
+                logs = json.load(f)
+        except Exception:
+            logs = []
+    
+    logs.append({
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "pin": pin,
+        "name": user_name,
+        "action": action,
+        "details": details
+    })
+    
+    with open(LOGS_FILE, "w") as f:
+        json.dump(logs[-1000:], f, indent=2)
+
 def verify_pin(x_app_pin: str = Header(None)):
     if not x_app_pin:
-        raise HTTPException(status_code=401, detail="Authentication PIN required.")
-    users = load_users()
-    user = users.get("pins", {}).get(str(x_app_pin))
+        raise HTTPException(status_code=401, detail="PIN_REQUIRED")
+    db = load_db()
+    user = db.get("pins", {}).get(str(x_app_pin))
     if not user:
-        raise HTTPException(status_code=403, detail="Invalid Access PIN.")
+        raise HTTPException(status_code=403, detail="INVALID_PIN")
     if not user.get("active", False):
-        raise HTTPException(status_code=403, detail="Access revoked. Contact administrator.")
+        raise HTTPException(status_code=403, detail="REVOKED_ACCESS")
     return user
 
 @app.get("/")
@@ -57,26 +89,78 @@ def serve_home():
 def serve_manifest():
     return FileResponse("manifest.json")
 
-# --- AUTH API ENDPOINTS ---
+# --- AUTH ENDPOINTS ---
 class VerifyPinRequest(BaseModel):
     pin: str
 
 @app.post("/api/verify-pin")
 def api_verify_pin(req: VerifyPinRequest):
-    users = load_users()
-    user = users.get("pins", {}).get(req.pin)
+    db = load_db()
+    user = db.get("pins", {}).get(req.pin)
     if not user:
-        raise HTTPException(status_code=403, detail="Invalid Access PIN")
+        raise HTTPException(status_code=403, detail="INVALID_PIN")
     if not user.get("active", False):
-        raise HTTPException(status_code=403, detail="Account suspended or revoked.")
+        raise HTTPException(status_code=403, detail="REVOKED_ACCESS")
+    
+    log_activity(req.pin, user["name"], "LOGIN", "Terminal Unlocked")
     return {"status": "ok", "role": user["role"], "name": user["name"]}
 
-# Admin User Management Endpoints
+class ResetPinRequest(BaseModel):
+    mobile: str
+    email: str
+    new_pin: str
+
+@app.post("/api/reset-pin")
+def reset_pin(req: ResetPinRequest):
+    db = load_db()
+    clean_mob = req.mobile.strip()
+    clean_email = req.email.strip().lower()
+    
+    matched_old_pin = None
+    for pin, u in db.get("pins", {}).items():
+        if u.get("role") != "admin":
+            if u.get("mobile", "").strip() == clean_mob and u.get("email", "").strip().lower() == clean_email:
+                matched_old_pin = pin
+                break
+                
+    if not matched_old_pin:
+        raise HTTPException(status_code=404, detail="No matching client profile found with provided Mobile & Email.")
+    
+    user_data = db["pins"].pop(matched_old_pin)
+    db["pins"][req.new_pin.strip()] = user_data
+    save_db(db)
+    
+    log_activity(req.new_pin, user_data["name"], "PIN_RESET", f"Old PIN changed to {req.new_pin}")
+    return {"status": "success", "message": "PIN updated successfully. Use your new PIN to unlock."}
+
+# --- ADMIN USER MANAGEMENT & EXCEL EXPORT ---
 @app.get("/api/admin/users")
 def get_all_users(user=Depends(verify_pin)):
     if user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Unauthorized Admin Action.")
-    return load_users()
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    return load_db()
+
+class AddUserRequest(BaseModel):
+    pin: str
+    name: str
+    mobile: str
+    email: str
+
+@app.post("/api/admin/add-user")
+def add_user(req: AddUserRequest, user=Depends(verify_pin)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    db = load_db()
+    db["pins"][req.pin.strip()] = {
+        "role": "guest",
+        "name": req.name.strip(),
+        "mobile": req.mobile.strip(),
+        "email": req.email.strip().lower(),
+        "active": True
+    }
+    save_db(db)
+    log_activity("9999", "Admin", "USER_CREATED", f"Added {req.name} ({req.mobile})")
+    return {"status": "success", "users": db}
 
 class ToggleUserRequest(BaseModel):
     pin: str
@@ -85,40 +169,78 @@ class ToggleUserRequest(BaseModel):
 @app.post("/api/admin/toggle-user")
 def toggle_user(req: ToggleUserRequest, user=Depends(verify_pin)):
     if user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Unauthorized Admin Action.")
-    users = load_users()
-    if req.pin in users.get("pins", {}):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    db = load_db()
+    if req.pin in db.get("pins", {}):
         if req.pin == "9999":
-            raise HTTPException(status_code=400, detail="Cannot disable root master admin.")
-        users["pins"][req.pin]["active"] = req.active
-        save_users(users)
-        return {"status": "success", "users": users}
+            raise HTTPException(status_code=400, detail="Cannot revoke Master Admin.")
+        db["pins"][req.pin]["active"] = req.active
+        save_db(db)
+        log_activity("9999", "Admin", "USER_STATUS_CHANGE", f"PIN {req.pin} set to active={req.active}")
+        return {"status": "success", "users": db}
     raise HTTPException(status_code=404, detail="PIN not found.")
 
-class AddUserRequest(BaseModel):
-    pin: str
-    name: str
-
-@app.post("/api/admin/add-user")
-def add_user(req: AddUserRequest, user=Depends(verify_pin)):
+@app.get("/api/admin/export-audit-excel")
+def export_audit_excel(x_app_pin: str = Header(None)):
+    user = verify_pin(x_app_pin)
     if user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Unauthorized Admin Action.")
-    users = load_users()
-    users["pins"][req.pin] = {"role": "guest", "name": req.name, "active": True}
-    save_users(users)
-    return {"status": "success", "users": users}
+        raise HTTPException(status_code=403, detail="Unauthorized")
 
-# --- RADAR CORE ENGINE (PROTECTED BY PIN) ---
+    db = load_db()
+    users_rows = []
+    for pin, info in db.get("pins", {}).items():
+        users_rows.append({
+            "PIN": pin,
+            "Client Name": info.get("name"),
+            "Role": info.get("role"),
+            "Mobile": info.get("mobile"),
+            "Email": info.get("email"),
+            "Status": "Active" if info.get("active") else "Revoked"
+        })
+    df_users = pd.DataFrame(users_rows)
+
+    logs = []
+    if os.path.exists(LOGS_FILE):
+        try:
+            with open(LOGS_FILE, "r") as f:
+                logs = json.load(f)
+        except Exception:
+            logs = []
+    df_logs = pd.DataFrame(logs) if logs else pd.DataFrame(columns=["timestamp", "pin", "name", "action", "details"])
+    df_logs.rename(columns={
+        "timestamp": "Timestamp",
+        "pin": "PIN",
+        "name": "User Name",
+        "action": "Action",
+        "details": "Details / Searched Ticker"
+    }, inplace=True)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_users.to_excel(writer, sheet_name='Client Registry', index=False)
+        df_logs.to_excel(writer, sheet_name='Activity & Search Logs', index=False)
+    output.seek(0)
+
+    filename = f"AntFinServ_Terminal_Audit_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+# --- CORE SCREENER ENGINE WITH ACTIVITY TRACKING ---
 class StockRequest(BaseModel):
     ticker: str
 
 @app.post("/api/analyze")
-def analyze_stock(req: StockRequest, user=Depends(verify_pin)):
+def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = Header(None)):
     try:
         symbol = req.ticker.strip().upper()
         if not symbol.endswith(".NS") and not symbol.endswith(".BO"):
             symbol += ".NS"
             
+        log_activity(str(x_app_pin), user.get("name", "User"), "SEARCH_TICKER", symbol.replace(".NS", ""))
+
         stock = yf.Ticker(symbol)
         hist = stock.history(period="1y")
 
@@ -137,7 +259,6 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin)):
 
         hist['EMA_50'] = hist['Close'].ewm(span=50, adjust=False).mean()
         hist['EMA_200'] = hist['Close'].ewm(span=200, adjust=False).mean()
-
         hist['EMA_12'] = hist['Close'].ewm(span=12, adjust=False).mean()
         hist['EMA_26'] = hist['Close'].ewm(span=26, adjust=False).mean()
         hist['MACD'] = hist['EMA_12'] - hist['EMA_26']
@@ -180,7 +301,6 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin)):
                 for c in cols:
                     y_lbl = c.strftime('%Y') if hasattr(c, 'strftime') else str(c)[:4]
                     year_labels.append(y_lbl)
-                    
                     net_inc = float(annual_fin.loc['Net Income', c]) if 'Net Income' in annual_fin.index else 0
                     ebit = float(annual_fin.loc['EBIT', c]) if 'EBIT' in annual_fin.index else 0
                     equity = float(annual_bs.loc['Stockholders Equity', c]) if 'Stockholders Equity' in annual_bs.index else (
@@ -192,7 +312,6 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin)):
                     calc_roe = round((net_inc / equity) * 100, 2) if equity > 0 else 0.0
                     cap_emp = assets - curr_liab
                     calc_roce = round((ebit / cap_emp) * 100, 2) if cap_emp > 0 else 0.0
-                    
                     roe_history.append(max(calc_roe, 0.0))
                     roce_history.append(max(calc_roce, 0.0))
             except Exception:
@@ -201,7 +320,6 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin)):
         roe_val = roe_history[-1] if roe_history else round(float((info.get('returnOnEquity', 0.0) or 0.0) * 100), 2)
         roce_val = roce_history[-1] if roce_history else round(float((info.get('returnOnAssets', 0.0) or 0.0) * 150), 2)
 
-        # Forensic OCF/PAT
         ocf_pat_ratio = 1.0
         ocf_status = "Good Cash Flow"
         try:

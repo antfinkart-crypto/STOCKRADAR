@@ -26,57 +26,93 @@
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 min-h-screen transition-colors duration-150 antialiased font-sans">
   
-  <!-- PIN LOCK SCREEN OVERLAY -->
+  <!-- PIN LOCK & RESET MODAL -->
   <div id="pinLockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md px-4">
-    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
-      <div class="w-16 h-16 rounded-2xl bg-amber-400/20 text-amber-500 mx-auto flex items-center justify-center text-3xl font-black mb-4 border border-amber-400/30">
-        🔒
-      </div>
-      <h2 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">AntFinServ Private Terminal</h2>
-      <p class="text-xs font-bold text-slate-500 mt-1 mb-6">Enter your 4-Digit Access PIN to unlock</p>
+    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-7 max-w-sm w-full shadow-2xl text-center">
       
-      <input id="pinInput" type="password" maxlength="6" placeholder="• • • •" 
-             class="w-full text-center tracking-[0.6em] text-3xl font-black font-mono py-3.5 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-cyan-600 mb-3">
-      
-      <div id="pinError" class="text-xs font-bold text-rose-600 mb-3 hidden">Invalid Access PIN or Account Revoked</div>
+      <!-- Lock View -->
+      <div id="lockView">
+        <div class="w-14 h-14 rounded-2xl bg-amber-400/20 text-amber-500 mx-auto flex items-center justify-center text-2xl font-black mb-3 border border-amber-400/30">
+          🔒
+        </div>
+        <h2 class="text-xl font-black text-slate-950 dark:text-white tracking-tight">AntFinServ Terminal</h2>
+        <p class="text-xs font-bold text-slate-500 mt-0.5 mb-5">Institutional Positional Intelligence</p>
+        
+        <input id="pinInput" type="password" maxlength="6" placeholder="• • • •" 
+               class="w-full text-center tracking-[0.6em] text-3xl font-black font-mono py-3 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-cyan-600 mb-2">
+        
+        <div id="pinError" class="text-xs font-bold text-rose-600 mb-3 hidden leading-snug text-left bg-rose-50 dark:bg-rose-950/50 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900"></div>
 
-      <button onclick="submitPin()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-black py-3.5 rounded-2xl text-base shadow-lg transition">
-        UNLOCK RADAR
-      </button>
+        <button onclick="submitPin()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-black py-3 rounded-2xl text-sm shadow-md transition">
+          UNLOCK RADAR
+        </button>
 
-      <div class="mt-5 text-[11px] text-slate-400 font-semibold">
-        Protected Institutional Engine • ARN-94204
+        <div class="mt-4 flex justify-between items-center text-[11px] font-bold text-slate-400">
+          <button onclick="switchView('resetView')" class="hover:text-cyan-600 underline">Forgot PIN / Reset?</button>
+          <span>ARN-94204</span>
+        </div>
       </div>
+
+      <!-- Reset PIN Self-Service View -->
+      <div id="resetView" class="hidden text-left">
+        <h3 class="text-base font-black text-slate-900 dark:text-white mb-1">Reset Access PIN</h3>
+        <p class="text-xs text-slate-500 mb-4 font-semibold">Verify your registered contact details:</p>
+
+        <div class="space-y-2 mb-4">
+          <input id="resetMobile" type="text" placeholder="Registered 10-Digit Mobile" class="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
+          <input id="resetEmail" type="email" placeholder="Registered Email Address" class="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
+          <input id="resetNewPin" type="text" maxlength="6" placeholder="Set New 4-Digit PIN" class="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
+        </div>
+
+        <div id="resetMsg" class="text-xs font-bold mb-3 hidden p-2 rounded-xl"></div>
+
+        <div class="flex gap-2">
+          <button onclick="switchView('lockView')" class="w-1/3 bg-slate-200 dark:bg-slate-800 font-bold py-2.5 rounded-xl text-xs">Back</button>
+          <button onclick="submitResetPin()" class="w-2/3 bg-cyan-600 hover:bg-cyan-700 text-white font-black py-2.5 rounded-xl text-xs">Update PIN</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <!-- ADMIN ACCESS CONTROL MODAL -->
+  <!-- ADMIN CONSOLE MODAL -->
   <div id="adminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4 hidden">
-    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl">
-      <div class="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
         <div>
-          <h3 class="text-base font-black text-slate-950 dark:text-white">Admin Access Manager</h3>
-          <p class="text-xs text-slate-500 font-semibold">Monetize & Control Client Subscriptions</p>
+          <h3 class="text-base font-black text-slate-950 dark:text-white">Admin Desk & Client Logs</h3>
+          <p class="text-xs text-slate-500 font-semibold">Lead Capturing, Role Control & Activity Reports</p>
         </div>
         <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
       </div>
 
-      <!-- Add New Client PIN -->
-      <div class="flex gap-2 mb-4">
-        <input id="newClientName" type="text" placeholder="Client Name" class="flex-1 text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
-        <input id="newClientPin" type="text" maxlength="6" placeholder="PIN" class="w-20 text-xs font-mono font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-center">
-        <button onclick="addNewClient()" class="bg-cyan-600 text-white text-xs font-black px-4 py-2 rounded-xl">Add</button>
+      <!-- Action Bar: Download Audit Excel -->
+      <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3">
+        <span class="text-xs font-bold text-slate-600 dark:text-slate-300">Complete Usage & Search Registry</span>
+        <button onclick="downloadExcelAudit()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+          📊 Export Excel (.xlsx)
+        </button>
+      </div>
+
+      <!-- Add New Client with Lead Info -->
+      <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3 space-y-2">
+        <span class="text-[11px] font-black uppercase text-cyan-600 tracking-wider">Create New Client Access</span>
+        <div class="grid grid-cols-2 gap-2">
+          <input id="newClientName" type="text" placeholder="Client Name" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <input id="newClientPin" type="text" maxlength="6" placeholder="Assign PIN" class="text-xs font-mono font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <input id="newClientMobile" type="tel" placeholder="Mobile Number" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <input id="newClientEmail" type="email" placeholder="Email Address" class="text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+        </div>
+        <button onclick="addNewClient()" class="w-full bg-cyan-600 text-white text-xs font-black py-2 rounded-xl">Save & Authorize Client</button>
       </div>
 
       <!-- Client PIN List -->
-      <div id="adminUserList" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+      <div id="adminUserList" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
     </div>
   </div>
 
-  <!-- MAIN APPLICATION CONTENT -->
+  <!-- MAIN TERMINAL APP -->
   <div class="w-[95%] max-w-[1440px] mx-auto py-5">
-    
-    <!-- Header -->
     <header class="flex justify-between items-center pb-4 mb-5 border-b border-slate-300 dark:border-slate-800">
       <div>
         <div class="flex items-center gap-2.5">
@@ -89,7 +125,6 @@
       </div>
 
       <div class="flex items-center gap-2.5">
-        <!-- Admin Console Trigger (Visible only to Admin) -->
         <button id="adminTriggerBtn" onclick="openAdminModal()" 
                 class="hidden px-3.5 py-1.5 rounded-lg text-xs font-black border border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-400 hover:bg-amber-400/20 shadow-sm transition">
           ⚙️ Access Manager
@@ -118,18 +153,14 @@
       </div>
     </div>
 
-    <!-- Recent Chips -->
     <div id="recentSection" class="mb-4 hidden">
       <div class="flex gap-2 items-center flex-wrap" id="recentList"></div>
     </div>
 
     <!-- Output Dashboard -->
     <div id="output" class="hidden space-y-4">
-
-      <!-- Executive Overview Card -->
       <div id="mainCard" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition">
         <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
-          
           <div class="space-y-1.5">
             <div class="flex items-center gap-3 flex-wrap">
               <h2 id="stockName" class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight"></h2>
@@ -140,27 +171,22 @@
             </div>
             <div id="instHolding" class="text-xs font-bold text-slate-500 dark:text-slate-400"></div>
           </div>
-
           <div class="flex items-baseline md:flex-col md:items-end justify-between gap-1">
             <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Current Market Price</span>
             <div id="cmpPrice" class="text-3xl md:text-4xl font-black font-mono text-slate-950 dark:text-cyan-400"></div>
           </div>
-
         </div>
 
-        <!-- Quick Momentum & Cash Flow Quality Strip -->
         <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-3 text-xs font-bold">
           <div class="flex items-center gap-2">
             <span class="text-slate-500 uppercase text-[10px]">Momentum:</span>
             <span id="macdAlert" class="font-mono font-black px-2.5 py-0.5 rounded text-xs"></span>
           </div>
-
           <div class="flex items-center gap-2">
             <span class="text-slate-500 uppercase text-[10px]">Cash Flow Quality (OCF/PAT):</span>
             <span id="ocfRatioVal" class="font-mono font-black px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300"></span>
             <span id="ocfStatusBadge" class="text-[11px] text-slate-500 font-semibold"></span>
           </div>
-
           <div class="flex items-center gap-2">
             <span class="text-slate-500 uppercase text-[10px]">Promoter Pledge:</span>
             <span id="pledgeVal" class="font-mono font-black px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-emerald-700 dark:text-emerald-400"></span>
@@ -168,92 +194,73 @@
         </div>
       </div>
 
-      <!-- VISUAL ANALYTICS CHARTS -->
+      <!-- CHARTS -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        
-        <!-- Chart A: Quarterly Revenue & PAT with Interactive Hover -->
         <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Quarterly Revenue vs PAT Trend</h3>
             <span class="text-[10px] font-mono font-bold text-slate-400">Values in ₹ Crores</span>
           </div>
-          <div class="h-56">
-            <canvas id="revPatChart"></canvas>
-          </div>
+          <div class="h-56"><canvas id="revPatChart"></canvas></div>
         </div>
 
-        <!-- Chart B: Technical Momentum (MACD + RSI with 90/10 Bands) -->
         <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Momentum Engine (MACD & RSI 14)</h3>
             <span class="text-[10px] font-mono font-bold text-slate-400">Hover across dates</span>
           </div>
-          <div class="h-56">
-            <canvas id="momentumChart"></canvas>
-          </div>
+          <div class="h-56"><canvas id="momentumChart"></canvas></div>
         </div>
-
       </div>
 
-      <!-- FTDB Multi-Quarter Evaluation Framework -->
+      <!-- FTDB Framework -->
       <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
             <div class="text-cyan-700 dark:text-cyan-400 font-black text-xs uppercase mb-1">F - Fundamentals</div>
             <p id="ftdbF" class="text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed"></p>
           </div>
-
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
             <div class="text-cyan-700 dark:text-cyan-400 font-black text-xs uppercase mb-1">T - Technical Trend</div>
             <p id="ftdbT" class="text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed"></p>
           </div>
-
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
             <div class="text-cyan-700 dark:text-cyan-400 font-black text-xs uppercase mb-1">D - Derivatives & Flow</div>
             <p id="ftdbD" class="text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed"></p>
           </div>
-
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
             <div class="text-cyan-700 dark:text-cyan-400 font-black text-xs uppercase mb-1">B - Big Money Footprint</div>
             <p id="ftdbB" class="text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed"></p>
           </div>
-
         </div>
       </div>
 
-      <!-- Execution Guardrails & Targets -->
+      <!-- Execution Levels -->
       <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
-          
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
             <span class="text-rose-600 dark:text-rose-400 font-black text-[11px] uppercase tracking-wider">Base Stop-Loss</span>
             <div id="slLevel" class="font-black text-2xl mt-1 text-rose-700 dark:text-rose-300 font-mono"></div>
           </div>
-
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
             <span class="text-slate-500 font-black text-[11px] uppercase tracking-wider">Support (S1)</span>
             <div id="supportLevel" class="font-black text-2xl mt-1 text-slate-900 dark:text-slate-100 font-mono"></div>
           </div>
-
           <div class="bg-slate-50 dark:bg-slate-950/70 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
             <span class="text-emerald-700 dark:text-emerald-400 font-black text-[11px] uppercase tracking-wider">Target 1 / Target 2</span>
             <div id="targetLevels" class="font-black text-2xl mt-1 text-emerald-700 dark:text-emerald-300 font-mono"></div>
           </div>
-
         </div>
       </div>
-
     </div>
   </div>
 
   <script>
     let revPatChartInstance = null;
     let momentumChartInstance = null;
-    const STORAGE_KEY = 'antfinserv_radar_v5';
+    const STORAGE_KEY = 'antfinserv_radar_v6';
     let currentAuth = null;
 
-    // --- AUTHENTICATION & PIN MANAGEMENT ---
     window.addEventListener('DOMContentLoaded', () => {
       renderRecentList();
       const savedAuth = localStorage.getItem('antfinserv_auth');
@@ -272,8 +279,20 @@
       });
     });
 
+    function switchView(view) {
+      if (view === 'resetView') {
+        document.getElementById('lockView').classList.add('hidden');
+        document.getElementById('resetView').classList.remove('hidden');
+      } else {
+        document.getElementById('resetView').classList.add('hidden');
+        document.getElementById('lockView').classList.remove('hidden');
+      }
+    }
+
     async function submitPin() {
       const pin = document.getElementById('pinInput').value.trim();
+      const errBox = document.getElementById('pinError');
+      errBox.classList.add('hidden');
       if (!pin) return;
 
       try {
@@ -282,25 +301,78 @@
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ pin: pin })
         });
+        
+        const data = await res.json();
         if (!res.ok) {
-          document.getElementById('pinError').classList.remove('hidden');
+          if (data.detail === "REVOKED_ACCESS") {
+            errBox.innerText = "Your institutional access has been suspended or revoked. Please contact AntFinServ Wealth Desk (ARN-94204) to renew your subscription.";
+          } else {
+            errBox.innerText = "Invalid PIN. Please check your credentials or use the Reset option.";
+          }
+          errBox.classList.remove('hidden');
           return;
         }
-        const data = await res.json();
+
         currentAuth = { pin: pin, role: data.role, name: data.name };
         localStorage.setItem('antfinserv_auth', JSON.stringify(currentAuth));
         unlockUI(currentAuth);
       } catch (err) {
-        document.getElementById('pinError').innerText = "Backend connection failed.";
-        document.getElementById('pinError').classList.remove('hidden');
+        errBox.innerText = "Connection failed. Backend starting up...";
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    async function submitResetPin() {
+      const mobile = document.getElementById('resetMobile').value.trim();
+      const email = document.getElementById('resetEmail').value.trim();
+      const newPin = document.getElementById('resetNewPin').value.trim();
+      const msgBox = document.getElementById('resetMsg');
+      
+      msgBox.classList.add('hidden');
+      if (!mobile || !email || !newPin) {
+        msgBox.className = "text-xs font-bold mb-3 p-2.5 rounded-xl bg-rose-100 text-rose-800";
+        msgBox.innerText = "Please fill Mobile, Email and desired 4-Digit PIN.";
+        msgBox.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/reset-pin', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ mobile: mobile, email: email, new_pin: newPin })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          msgBox.className = "text-xs font-bold mb-3 p-2.5 rounded-xl bg-rose-100 text-rose-800";
+          msgBox.innerText = data.detail || "Verification failed.";
+          msgBox.classList.remove('hidden');
+          return;
+        }
+
+        msgBox.className = "text-xs font-bold mb-3 p-2.5 rounded-xl bg-emerald-100 text-emerald-800";
+        msgBox.innerText = "PIN updated successfully! Redirecting...";
+        msgBox.classList.remove('hidden');
+        setTimeout(() => {
+          switchView('lockView');
+          document.getElementById('pinInput').value = newPin;
+          submitPin();
+        }, 1500);
+      } catch (err) {
+        msgBox.className = "text-xs font-bold mb-3 p-2.5 rounded-xl bg-rose-100 text-rose-800";
+        msgBox.innerText = "Server unreachable.";
+        msgBox.classList.remove('hidden');
       }
     }
 
     function unlockUI(auth) {
       document.getElementById('pinLockModal').classList.add('hidden');
       document.getElementById('pinError').classList.add('hidden');
+      // STRICT ADMIN VISIBILITY
       if (auth.role === 'admin') {
         document.getElementById('adminTriggerBtn').classList.remove('hidden');
+      } else {
+        document.getElementById('adminTriggerBtn').classList.add('hidden');
       }
     }
 
@@ -310,9 +382,10 @@
       document.getElementById('pinInput').value = '';
       document.getElementById('adminTriggerBtn').classList.add('hidden');
       document.getElementById('pinLockModal').classList.remove('hidden');
+      switchView('lockView');
     }
 
-    // --- ADMIN USER & MONETIZATION MANAGER ---
+    // --- ADMIN ACCESS MANAGER ---
     async function openAdminModal() {
       if (!currentAuth || currentAuth.role !== 'admin') return;
       document.getElementById('adminModal').classList.remove('hidden');
@@ -336,9 +409,12 @@
         row.className = 'flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs';
         row.innerHTML = `
           <div>
-            <span class="font-bold text-slate-900 dark:text-white">${info.name}</span>
-            <span class="font-mono ml-2 text-cyan-600 font-bold">PIN: ${pin}</span>
-            <span class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold ${info.role === 'admin' ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}">${info.role}</span>
+            <div class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              ${info.name} 
+              <span class="font-mono text-cyan-600 font-black">PIN: ${pin}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${info.role === 'admin' ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}">${info.role}</span>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">📞 ${info.mobile || 'N/A'} | ✉️ ${info.email || 'N/A'}</div>
           </div>
           <div>
             ${pin === '9999' ? '<span class="text-slate-400 font-bold">Master</span>' : `
@@ -364,25 +440,36 @@
     async function addNewClient() {
       const name = document.getElementById('newClientName').value.trim();
       const pin = document.getElementById('newClientPin').value.trim();
-      if (!name || !pin) return;
+      const mobile = document.getElementById('newClientMobile').value.trim();
+      const email = document.getElementById('newClientEmail').value.trim();
+      if (!name || !pin || !mobile || !email) {
+        alert('Please fill Name, PIN, Mobile and Email.');
+        return;
+      }
 
       await fetch('/api/admin/add-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-App-Pin': currentAuth.pin },
-        body: JSON.stringify({ name: name, pin: pin })
+        body: JSON.stringify({ name, pin, mobile, email })
       });
       document.getElementById('newClientName').value = '';
       document.getElementById('newClientPin').value = '';
+      document.getElementById('newClientMobile').value = '';
+      document.getElementById('newClientEmail').value = '';
       loadAdminUsers();
     }
 
-    // --- DASHBOARD CORE ENGINE ---
+    function downloadExcelAudit() {
+      if (!currentAuth || currentAuth.role !== 'admin') return;
+      window.location.href = `/api/admin/export-audit-excel?x_app_pin=${currentAuth.pin}`;
+    }
+
+    // --- CORE RADAR ENGINE ---
     function toggleTheme() {
       const html = document.documentElement;
       const isDark = html.classList.contains('dark');
       const themeIcon = document.getElementById('themeIcon');
       const themeText = document.getElementById('themeText');
-
       if (isDark) {
         html.classList.remove('dark');
         themeIcon.innerText = "🌙";
@@ -405,11 +492,6 @@
       history.unshift(stockData);
       if (history.length > 8) history = history.slice(0, 8);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
-      renderRecentList();
-    }
-
-    function clearHistory() {
-      localStorage.removeItem(STORAGE_KEY);
       renderRecentList();
     }
 
@@ -461,7 +543,7 @@
         });
         
         if (res.status === 401 || res.status === 403) {
-          alert('Access Revoked or PIN Expired. Please login again.');
+          alert('Access Revoked by Administrator. Please contact AntFinServ Wealth Desk.');
           lockTerminal();
           return;
         }
