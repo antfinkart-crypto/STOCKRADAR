@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QuantAlpha Terminal</title>
+  <title>AntFinServ QuantAlpha Radar</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,6 +26,54 @@
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 min-h-screen transition-colors duration-150 antialiased font-sans">
   
+  <!-- PIN LOCK SCREEN OVERLAY -->
+  <div id="pinLockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md px-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
+      <div class="w-16 h-16 rounded-2xl bg-amber-400/20 text-amber-500 mx-auto flex items-center justify-center text-3xl font-black mb-4 border border-amber-400/30">
+        🔒
+      </div>
+      <h2 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">AntFinServ Private Terminal</h2>
+      <p class="text-xs font-bold text-slate-500 mt-1 mb-6">Enter your 4-Digit Access PIN to unlock</p>
+      
+      <input id="pinInput" type="password" maxlength="6" placeholder="• • • •" 
+             class="w-full text-center tracking-[0.6em] text-3xl font-black font-mono py-3.5 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-cyan-600 mb-3">
+      
+      <div id="pinError" class="text-xs font-bold text-rose-600 mb-3 hidden">Invalid Access PIN or Account Revoked</div>
+
+      <button onclick="submitPin()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-black py-3.5 rounded-2xl text-base shadow-lg transition">
+        UNLOCK RADAR
+      </button>
+
+      <div class="mt-5 text-[11px] text-slate-400 font-semibold">
+        Protected Institutional Engine • ARN-94204
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN ACCESS CONTROL MODAL -->
+  <div id="adminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4 hidden">
+    <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl">
+      <div class="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
+        <div>
+          <h3 class="text-base font-black text-slate-950 dark:text-white">Admin Access Manager</h3>
+          <p class="text-xs text-slate-500 font-semibold">Monetize & Control Client Subscriptions</p>
+        </div>
+        <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+      </div>
+
+      <!-- Add New Client PIN -->
+      <div class="flex gap-2 mb-4">
+        <input id="newClientName" type="text" placeholder="Client Name" class="flex-1 text-xs font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
+        <input id="newClientPin" type="text" maxlength="6" placeholder="PIN" class="w-20 text-xs font-mono font-bold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-center">
+        <button onclick="addNewClient()" class="bg-cyan-600 text-white text-xs font-black px-4 py-2 rounded-xl">Add</button>
+      </div>
+
+      <!-- Client PIN List -->
+      <div id="adminUserList" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+
+  <!-- MAIN APPLICATION CONTENT -->
   <div class="w-[95%] max-w-[1440px] mx-auto py-5">
     
     <!-- Header -->
@@ -33,17 +81,29 @@
       <div>
         <div class="flex items-center gap-2.5">
           <div class="h-3 w-3 rounded-full bg-cyan-600 dark:bg-cyan-400"></div>
-          <h1 class="text-2xl font-black tracking-tight text-slate-950 dark:text-white">QUANTALPHA POSITIONAL RADAR</h1>
+          <h1 class="text-2xl font-black tracking-tight text-slate-950 dark:text-white">ANTFINSERV POSITIONAL RADAR</h1>
         </div>
         <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5 pl-5.5">
-          Institutional FTDB Framework (2–3 Quarters Compounding Model)
+          Institutional FTDB Framework (2–3 Quarters Compounding Engine)
         </p>
       </div>
 
-      <button onclick="toggleTheme()" id="themeBtn" 
-              class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-black border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-sm transition">
-        <span id="themeIcon">🌙</span> <span id="themeText">Dark</span>
-      </button>
+      <div class="flex items-center gap-2.5">
+        <!-- Admin Console Trigger (Visible only to Admin) -->
+        <button id="adminTriggerBtn" onclick="openAdminModal()" 
+                class="hidden px-3.5 py-1.5 rounded-lg text-xs font-black border border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-400 hover:bg-amber-400/20 shadow-sm transition">
+          ⚙️ Access Manager
+        </button>
+
+        <button onclick="lockTerminal()" title="Lock Terminal" class="px-3 py-1.5 rounded-lg text-xs font-black border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200">
+          🔒 Lock
+        </button>
+
+        <button onclick="toggleTheme()" id="themeBtn" 
+                class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-sm transition">
+          <span id="themeIcon">🌙</span> <span id="themeText">Dark</span>
+        </button>
+      </div>
     </header>
 
     <!-- Search Box -->
@@ -108,7 +168,7 @@
         </div>
       </div>
 
-      <!-- VISUAL ANALYTICS CHARTS (Row 1: Revenue/PAT + Capital Efficiency) -->
+      <!-- VISUAL ANALYTICS CHARTS -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
         <!-- Chart A: Quarterly Revenue & PAT with Interactive Hover -->
@@ -190,8 +250,133 @@
   <script>
     let revPatChartInstance = null;
     let momentumChartInstance = null;
-    const STORAGE_KEY = 'quantalpha_terminal_v4';
+    const STORAGE_KEY = 'antfinserv_radar_v5';
+    let currentAuth = null;
 
+    // --- AUTHENTICATION & PIN MANAGEMENT ---
+    window.addEventListener('DOMContentLoaded', () => {
+      renderRecentList();
+      const savedAuth = localStorage.getItem('antfinserv_auth');
+      if (savedAuth) {
+        currentAuth = JSON.parse(savedAuth);
+        unlockUI(currentAuth);
+      } else {
+        document.getElementById('pinLockModal').classList.remove('hidden');
+      }
+
+      document.getElementById('pinInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitPin();
+      });
+      document.getElementById('tickerInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') runAnalysis();
+      });
+    });
+
+    async function submitPin() {
+      const pin = document.getElementById('pinInput').value.trim();
+      if (!pin) return;
+
+      try {
+        const res = await fetch('/api/verify-pin', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ pin: pin })
+        });
+        if (!res.ok) {
+          document.getElementById('pinError').classList.remove('hidden');
+          return;
+        }
+        const data = await res.json();
+        currentAuth = { pin: pin, role: data.role, name: data.name };
+        localStorage.setItem('antfinserv_auth', JSON.stringify(currentAuth));
+        unlockUI(currentAuth);
+      } catch (err) {
+        document.getElementById('pinError').innerText = "Backend connection failed.";
+        document.getElementById('pinError').classList.remove('hidden');
+      }
+    }
+
+    function unlockUI(auth) {
+      document.getElementById('pinLockModal').classList.add('hidden');
+      document.getElementById('pinError').classList.add('hidden');
+      if (auth.role === 'admin') {
+        document.getElementById('adminTriggerBtn').classList.remove('hidden');
+      }
+    }
+
+    function lockTerminal() {
+      localStorage.removeItem('antfinserv_auth');
+      currentAuth = null;
+      document.getElementById('pinInput').value = '';
+      document.getElementById('adminTriggerBtn').classList.add('hidden');
+      document.getElementById('pinLockModal').classList.remove('hidden');
+    }
+
+    // --- ADMIN USER & MONETIZATION MANAGER ---
+    async function openAdminModal() {
+      if (!currentAuth || currentAuth.role !== 'admin') return;
+      document.getElementById('adminModal').classList.remove('hidden');
+      loadAdminUsers();
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').classList.add('hidden');
+    }
+
+    async function loadAdminUsers() {
+      const res = await fetch('/api/admin/users', {
+        headers: { 'X-App-Pin': currentAuth.pin }
+      });
+      const data = await res.json();
+      const listEl = document.getElementById('adminUserList');
+      listEl.innerHTML = '';
+
+      for (const [pin, info] of Object.entries(data.pins)) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs';
+        row.innerHTML = `
+          <div>
+            <span class="font-bold text-slate-900 dark:text-white">${info.name}</span>
+            <span class="font-mono ml-2 text-cyan-600 font-bold">PIN: ${pin}</span>
+            <span class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold ${info.role === 'admin' ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}">${info.role}</span>
+          </div>
+          <div>
+            ${pin === '9999' ? '<span class="text-slate-400 font-bold">Master</span>' : `
+              <button onclick="toggleUserAccess('${pin}', ${!info.active})" class="px-3 py-1 rounded-lg font-bold text-xs ${info.active ? 'bg-rose-100 text-rose-700 hover:bg-rose-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}">
+                ${info.active ? 'Revoke Access' : 'Activate'}
+              </button>
+            `}
+          </div>
+        `;
+        listEl.appendChild(row);
+      }
+    }
+
+    async function toggleUserAccess(pin, newStatus) {
+      await fetch('/api/admin/toggle-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-App-Pin': currentAuth.pin },
+        body: JSON.stringify({ pin: pin, active: newStatus })
+      });
+      loadAdminUsers();
+    }
+
+    async function addNewClient() {
+      const name = document.getElementById('newClientName').value.trim();
+      const pin = document.getElementById('newClientPin').value.trim();
+      if (!name || !pin) return;
+
+      await fetch('/api/admin/add-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-App-Pin': currentAuth.pin },
+        body: JSON.stringify({ name: name, pin: pin })
+      });
+      document.getElementById('newClientName').value = '';
+      document.getElementById('newClientPin').value = '';
+      loadAdminUsers();
+    }
+
+    // --- DASHBOARD CORE ENGINE ---
     function toggleTheme() {
       const html = document.documentElement;
       const isDark = html.classList.contains('dark');
@@ -208,13 +393,6 @@
         themeText.innerText = "Light";
       }
     }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      renderRecentList();
-      document.getElementById('tickerInput').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') runAnalysis();
-      });
-    });
 
     function getHistory() {
       const data = localStorage.getItem(STORAGE_KEY);
@@ -239,15 +417,12 @@
       const history = getHistory();
       const section = document.getElementById('recentSection');
       const container = document.getElementById('recentList');
-      
       if (!history || history.length === 0) {
         section.classList.add('hidden');
         return;
       }
-
       section.classList.remove('hidden');
       container.innerHTML = '';
-
       history.forEach(item => {
         const btn = document.createElement('button');
         btn.className = `text-xs px-3 py-1 rounded-lg border font-mono font-black transition flex items-center gap-1.5 ${
@@ -262,6 +437,11 @@
     }
 
     async function runAnalysis(manualTicker = null) {
+      if (!currentAuth) {
+        document.getElementById('pinLockModal').classList.remove('hidden');
+        return;
+      }
+
       const tickerInput = document.getElementById('tickerInput');
       const ticker = manualTicker || tickerInput.value.trim();
       if (!ticker) return;
@@ -273,12 +453,21 @@
       try {
         const res = await fetch('/api/analyze', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'X-App-Pin': currentAuth.pin
+          },
           body: JSON.stringify({ ticker: ticker })
         });
         
+        if (res.status === 401 || res.status === 403) {
+          alert('Access Revoked or PIN Expired. Please login again.');
+          lockTerminal();
+          return;
+        }
+
         if (!res.ok) {
-          alert('Symbol not recognized on NSE. Verify ticker.');
+          alert('Symbol not recognized on NSE.');
           return;
         }
 
@@ -286,7 +475,7 @@
         saveToHistory(data);
         renderData(data);
       } catch (err) {
-        alert('Server unreachable. Ensure Python backend is active.');
+        alert('Server connection error.');
       } finally {
         btn.innerText = "SCAN";
         btn.disabled = false;
@@ -294,7 +483,6 @@
     }
 
     function renderCharts(data) {
-      // 1. Chart A: Quarterly Revenue vs PAT
       const ctx1 = document.getElementById('revPatChart').getContext('2d');
       if (revPatChartInstance) revPatChartInstance.destroy();
 
@@ -329,9 +517,7 @@
             legend: { labels: { font: { weight: 'bold', size: 11 } } },
             tooltip: {
               callbacks: {
-                label: function(context) {
-                  return ` ${context.dataset.label}: ₹${context.raw.toLocaleString('en-IN')} Cr`;
-                }
+                label: (ctx) => ` ${ctx.dataset.label}: ₹${ctx.raw.toLocaleString('en-IN')} Cr`
               }
             }
           },
@@ -342,7 +528,6 @@
         }
       });
 
-      // 2. Chart B: MACD & RSI (Hover-over synced across all dates + 90/10 Bands)
       const ctx2 = document.getElementById('momentumChart').getContext('2d');
       if (momentumChartInstance) momentumChartInstance.destroy();
 

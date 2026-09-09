@@ -1,13 +1,53 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import json
+import os
 
-app = FastAPI(title="QuantAlpha Positional Radar")
+app = FastAPI(title="AntFinServ QuantAlpha Radar")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# --- PERSISTENT USER & PIN REGISTRY ---
+USERS_FILE = "users_db.json"
+
+DEFAULT_USERS = {
+    "pins": {
+        "9999": {"role": "admin", "name": "Rana Sahib (Admin)", "active": True},
+        "1234": {"role": "guest", "name": "Premium Client 1", "active": True},
+        "5678": {"role": "guest", "name": "Trial Client 2", "active": True}
+    }
+}
+
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        with open(USERS_FILE, "w") as f:
+            json.dump(DEFAULT_USERS, f, indent=2)
+        return DEFAULT_USERS
+    try:
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return DEFAULT_USERS
+
+def save_users(data):
+    with open(USERS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+# --- AUTH VERIFICATION HELPER ---
+def verify_pin(x_app_pin: str = Header(None)):
+    if not x_app_pin:
+        raise HTTPException(status_code=401, detail="Authentication PIN required.")
+    users = load_users()
+    user = users.get("pins", {}).get(str(x_app_pin))
+    if not user:
+        raise HTTPException(status_code=403, detail="Invalid Access PIN.")
+    if not user.get("active", False):
+        raise HTTPException(status_code=403, detail="Access revoked. Contact administrator.")
+    return user
 
 @app.get("/")
 def serve_home():
@@ -17,11 +57,63 @@ def serve_home():
 def serve_manifest():
     return FileResponse("manifest.json")
 
+# --- AUTH API ENDPOINTS ---
+class VerifyPinRequest(BaseModel):
+    pin: str
+
+@app.post("/api/verify-pin")
+def api_verify_pin(req: VerifyPinRequest):
+    users = load_users()
+    user = users.get("pins", {}).get(req.pin)
+    if not user:
+        raise HTTPException(status_code=403, detail="Invalid Access PIN")
+    if not user.get("active", False):
+        raise HTTPException(status_code=403, detail="Account suspended or revoked.")
+    return {"status": "ok", "role": user["role"], "name": user["name"]}
+
+# Admin User Management Endpoints
+@app.get("/api/admin/users")
+def get_all_users(user=Depends(verify_pin)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Unauthorized Admin Action.")
+    return load_users()
+
+class ToggleUserRequest(BaseModel):
+    pin: str
+    active: bool
+
+@app.post("/api/admin/toggle-user")
+def toggle_user(req: ToggleUserRequest, user=Depends(verify_pin)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Unauthorized Admin Action.")
+    users = load_users()
+    if req.pin in users.get("pins", {}):
+        if req.pin == "9999":
+            raise HTTPException(status_code=400, detail="Cannot disable root master admin.")
+        users["pins"][req.pin]["active"] = req.active
+        save_users(users)
+        return {"status": "success", "users": users}
+    raise HTTPException(status_code=404, detail="PIN not found.")
+
+class AddUserRequest(BaseModel):
+    pin: str
+    name: str
+
+@app.post("/api/admin/add-user")
+def add_user(req: AddUserRequest, user=Depends(verify_pin)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Unauthorized Admin Action.")
+    users = load_users()
+    users["pins"][req.pin] = {"role": "guest", "name": req.name, "active": True}
+    save_users(users)
+    return {"status": "success", "users": users}
+
+# --- RADAR CORE ENGINE (PROTECTED BY PIN) ---
 class StockRequest(BaseModel):
     ticker: str
 
 @app.post("/api/analyze")
-def analyze_stock(req: StockRequest):
+def analyze_stock(req: StockRequest, user=Depends(verify_pin)):
     try:
         symbol = req.ticker.strip().upper()
         if not symbol.endswith(".NS") and not symbol.endswith(".BO"):
@@ -39,7 +131,6 @@ def analyze_stock(req: StockRequest):
         except Exception:
             info = {}
 
-        # 1. Price Action & Moving Averages
         cmp = round(float(hist['Close'].iloc[-1]), 2)
         high_52w = round(float(hist['High'].max()), 2)
         low_52w = round(float(hist['Low'].min()), 2)
@@ -47,7 +138,6 @@ def analyze_stock(req: StockRequest):
         hist['EMA_50'] = hist['Close'].ewm(span=50, adjust=False).mean()
         hist['EMA_200'] = hist['Close'].ewm(span=200, adjust=False).mean()
 
-        # 2. MACD & RSI (14)
         hist['EMA_12'] = hist['Close'].ewm(span=12, adjust=False).mean()
         hist['EMA_26'] = hist['Close'].ewm(span=26, adjust=False).mean()
         hist['MACD'] = hist['EMA_12'] - hist['EMA_26']
@@ -73,7 +163,6 @@ def analyze_stock(req: StockRequest):
         macd_crossover = bool(latest_macd >= latest_sig and macd_series[-2] <= signal_series[-2])
         rsi_14 = rsi_series[-1]
 
-        # 3. Capital Efficiency Ratios (ROCE & ROE Fallback)
         pe = round(float(info.get('trailingPE', 0.0) or 0.0), 2)
         debt_equity = round(float((info.get('debtToEquity', 0.0) or 0.0) / 100), 2)
         pledged_pct = round(float(info.get('pnlPledged', 0.0) or 0.0), 2)
@@ -112,34 +201,30 @@ def analyze_stock(req: StockRequest):
         roe_val = roe_history[-1] if roe_history else round(float((info.get('returnOnEquity', 0.0) or 0.0) * 100), 2)
         roce_val = roce_history[-1] if roce_history else round(float((info.get('returnOnAssets', 0.0) or 0.0) * 150), 2)
 
-        # 4. Forensic Accounting: OCF / PAT Metric
+        # Forensic OCF/PAT
         ocf_pat_ratio = 1.0
-        ocf_status = "Good Cash Conversion"
+        ocf_status = "Good Cash Flow"
         try:
             cf = stock.cashflow
             if not cf.empty and not annual_fin.empty:
                 latest_cf_col = cf.columns[0]
                 latest_fin_col = annual_fin.columns[0]
-                
                 ocf_val = 0.0
                 for row_name in ['Operating Cash Flow', 'Total Cash From Operating Activities', 'Cash Flow From Continuing Operating Activities']:
                     if row_name in cf.index:
                         ocf_val = float(cf.loc[row_name, latest_cf_col])
                         break
-                
                 pat_val = float(annual_fin.loc['Net Income', latest_fin_col]) if 'Net Income' in annual_fin.index else 0.0
-
                 if pat_val > 0:
                     ocf_pat_ratio = round(ocf_val / pat_val, 2)
-                    ocf_status = "Elite Cash Conversion (>1.0x)" if ocf_pat_ratio >= 1.0 else ("Adequate (0.7-1.0x)" if ocf_pat_ratio >= 0.7 else "Scrutiny: Weak Cash Conversion (<0.7x)")
+                    ocf_status = "Elite (>1.0x)" if ocf_pat_ratio >= 1.0 else ("Adequate (0.7-1.0x)" if ocf_pat_ratio >= 0.7 else "Scrutiny (<0.7x)")
                 else:
                     ocf_pat_ratio = 0.0
-                    ocf_status = "Neutral / Loss-making base"
+                    ocf_status = "Neutral"
         except Exception:
             ocf_pat_ratio = 1.0
             ocf_status = "Standard Normal"
 
-        # 5. Guardrails & Targets
         diff = high_52w - low_52w
         fib_382 = round(low_52w + 0.382 * diff, 2)
         fib_618 = round(low_52w + 0.618 * diff, 2)
@@ -148,7 +233,6 @@ def analyze_stock(req: StockRequest):
         target_1 = round(fib_618 if cmp < fib_618 else high_52w, 2)
         target_2 = round(high_52w * 1.20, 2)
 
-        # 6. Quarterly Data
         quarterly_data = []
         q_rev_series = []
         q_pat_series = []
@@ -223,5 +307,4 @@ def analyze_stock(req: StockRequest):
             }
         }
     except Exception as e:
-        print("BACKEND EXCEPTION:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
