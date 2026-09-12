@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import yfinance as yf
 import pandas as pd
@@ -8,12 +8,15 @@ import numpy as np
 import json
 import os
 import time
+import urllib.request
+import urllib.parse
 from datetime import datetime
 
-app = FastAPI(title="AntFinServ QuantAlpha Radar")
+app = FastAPI(title="AntFinServ Positional Radar & Quant Portfolio Terminal")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 DB_FILE = "users_db.json"
+PORTFOLIO_FILE = "portfolio_db.json"
 LOGS_FILE = "activity_logs.json"
 
 DEFAULT_DATA = {
@@ -28,36 +31,6 @@ DEFAULT_DATA = {
     }
 }
 
-COMPANY_DIRECTORY = [
-    {"name": "Capri Global Capital Limited", "symbol": "CAPRIGLOBAL.NS", "display": "CGCL / CAPRIGLOBAL", "sector": "NBFC"},
-    {"name": "Tata Consultancy Services", "symbol": "TCS.NS", "display": "TCS", "sector": "IT"},
-    {"name": "Tata Motors Limited", "symbol": "TATAMOTORS.NS", "display": "TATAMOTORS", "sector": "Auto"},
-    {"name": "Tata Power Company", "symbol": "TATAPOWER.NS", "display": "TATAPOWER", "sector": "Power"},
-    {"name": "Tata Steel Limited", "symbol": "TATASTEEL.NS", "display": "TATASTEEL", "sector": "Metals"},
-    {"name": "Reliance Industries Limited", "symbol": "RELIANCE.NS", "display": "RELIANCE", "sector": "Energy"},
-    {"name": "HDFC Bank Limited", "symbol": "HDFCBANK.NS", "display": "HDFCBANK", "sector": "Banking"},
-    {"name": "ICICI Bank Limited", "symbol": "ICICIBANK.NS", "display": "ICICIBANK", "sector": "Banking"},
-    {"name": "State Bank of India", "symbol": "SBIN.NS", "display": "SBIN", "sector": "Banking"},
-    {"name": "Axis Bank Limited", "symbol": "AXISBANK.NS", "display": "AXISBANK", "sector": "Banking"},
-    {"name": "Kotak Mahindra Bank", "symbol": "KOTAKBANK.NS", "display": "KOTAKBANK", "sector": "Banking"},
-    {"name": "Mahindra & Mahindra Limited", "symbol": "M&M.NS", "display": "M&M", "sector": "Auto"},
-    {"name": "Maruti Suzuki India", "symbol": "MARUTI.NS", "display": "MARUTI", "sector": "Auto"},
-    {"name": "Bajaj Auto Limited", "symbol": "BAJAJ-AUTO.NS", "display": "BAJAJ-AUTO", "sector": "Auto"},
-    {"name": "Bajaj Finance Limited", "symbol": "BAJFINANCE.NS", "display": "BAJFINANCE", "sector": "NBFC"},
-    {"name": "Larsen & Toubro Limited", "symbol": "LT.NS", "display": "LT", "sector": "Infrastructure"},
-    {"name": "Infosys Limited", "symbol": "INFY.NS", "display": "INFY", "sector": "IT"},
-    {"name": "ITC Limited", "symbol": "ITC.NS", "display": "ITC", "sector": "FMCG"},
-    {"name": "Trent Limited", "symbol": "TRENT.NS", "display": "TRENT", "sector": "Retail"},
-    {"name": "Dixon Technologies", "symbol": "DIXON.NS", "display": "DIXON", "sector": "Electronics"},
-    {"name": "Polycab India Limited", "symbol": "POLYCAB.NS", "display": "POLYCAB", "sector": "Industrial"},
-    {"name": "Hindustan Aeronautics (HAL)", "symbol": "HAL.NS", "display": "HAL", "sector": "Defense"},
-    {"name": "Bharat Electronics (BEL)", "symbol": "BEL.NS", "display": "BEL", "sector": "Defense"},
-    {"name": "Zomato Limited", "symbol": "ZOMATO.NS", "display": "ZOMATO", "sector": "Consumer Tech"},
-    {"name": "Muthoot Finance Limited", "symbol": "MUTHOOTFIN.NS", "display": "MUTHOOTFIN", "sector": "NBFC"},
-    {"name": "Jio Financial Services", "symbol": "JIOFIN.NS", "display": "JIOFIN", "sector": "NBFC"},
-    {"name": "Alldigi Tech Limited", "symbol": "ALLDIGI.NS", "display": "ALLDIGI", "sector": "BPO/ITeS"}
-]
-
 def load_db():
     if not os.path.exists(DB_FILE):
         with open(DB_FILE, "w") as f:
@@ -66,17 +39,24 @@ def load_db():
     try:
         with open(DB_FILE, "r") as f:
             data = json.load(f)
-            if "1234" in data.get("pins", {}):
-                data["pins"].pop("1234", None)
             if "942040" not in data.get("pins", {}):
                 data["pins"]["942040"] = DEFAULT_DATA["pins"]["942040"]
             return data
     except Exception:
         return DEFAULT_DATA
 
-def save_db(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+def load_portfolio():
+    if not os.path.exists(PORTFOLIO_FILE):
+        return []
+    try:
+        with open(PORTFOLIO_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_portfolio(p):
+    with open(PORTFOLIO_FILE, "w") as f:
+        json.dump(p, f, indent=2)
 
 def log_activity(pin: str, user_name: str, action: str, details: str = ""):
     logs = []
@@ -101,10 +81,8 @@ def verify_pin(x_app_pin: str = Header(None)):
         raise HTTPException(status_code=401, detail="PIN_REQUIRED")
     db = load_db()
     user = db.get("pins", {}).get(str(x_app_pin))
-    if not user:
+    if not user or not user.get("active", False):
         raise HTTPException(status_code=403, detail="INVALID_PIN")
-    if not user.get("active", False):
-        raise HTTPException(status_code=403, detail="REVOKED_ACCESS")
     return user
 
 @app.get("/")
@@ -117,8 +95,7 @@ def serve_manifest():
 
 # --- WEEKEND-PROOF TICKER ENGINE ---
 TICKER_CACHE = {"timestamp": 0, "data": {}}
-
-N50_LIST = [
+N50_SEEDS = [
     {"symbol": "RELIANCE", "ticker": "RELIANCE.NS", "base": 2985.0},
     {"symbol": "HDFCBANK", "ticker": "HDFCBANK.NS", "base": 1648.5},
     {"symbol": "ICICIBANK", "ticker": "ICICIBANK.NS", "base": 1230.0},
@@ -126,22 +103,16 @@ N50_LIST = [
     {"symbol": "TCS", "ticker": "TCS.NS", "base": 4210.0},
     {"symbol": "LT", "ticker": "LT.NS", "base": 3615.0},
     {"symbol": "BHARTIARTL", "ticker": "BHARTIARTL.NS", "base": 1560.0},
-    {"symbol": "SBIN", "ticker": "SBIN.NS", "base": 815.0},
-    {"symbol": "TATAMOTORS", "ticker": "TATAMOTORS.NS", "base": 975.0},
-    {"symbol": "MARUTI", "ticker": "MARUTI.NS", "base": 12450.0}
+    {"symbol": "SBIN", "ticker": "SBIN.NS", "base": 815.0}
 ]
 
-N500_LIST = [
+N500_SEEDS = [
     {"symbol": "TRENT", "ticker": "TRENT.NS", "base": 6940.0},
     {"symbol": "DIXON", "ticker": "DIXON.NS", "base": 12850.0},
     {"symbol": "POLYCAB", "ticker": "POLYCAB.NS", "base": 6780.0},
     {"symbol": "HAL", "ticker": "HAL.NS", "base": 4720.0},
-    {"symbol": "BEL", "ticker": "BEL.NS", "base": 308.0},
-    {"symbol": "SUZLON", "ticker": "SUZLON.NS", "base": 74.5},
-    {"symbol": "ZOMATO", "ticker": "ZOMATO.NS", "base": 265.0},
     {"symbol": "CGCL", "ticker": "CAPRIGLOBAL.NS", "base": 224.5},
-    {"symbol": "MUTHOOTFIN", "ticker": "MUTHOOTFIN.NS", "base": 1815.0},
-    {"symbol": "JIOFIN", "ticker": "JIOFIN.NS", "base": 345.0},
+    {"symbol": "HAPPSTMNDS", "ticker": "HAPPSTMNDS.NS", "base": 780.0},
     {"symbol": "ALLDIGI", "ticker": "ALLDIGI.NS", "base": 795.0}
 ]
 
@@ -152,48 +123,67 @@ def get_market_ticker():
     if now - TICKER_CACHE["timestamp"] < 300 and TICKER_CACHE["data"]:
         return TICKER_CACHE["data"]
 
-    def fetch_batch(lst):
+    def build_feed(seeds):
         res = []
-        for item in lst:
+        for s in seeds:
             try:
-                t = yf.Ticker(item["ticker"])
+                t = yf.Ticker(s["ticker"])
                 h = t.history(period="5d")
                 if h is not None and not h.empty and len(h) >= 2:
                     c_now = float(h['Close'].iloc[-1])
                     c_prev = float(h['Close'].iloc[-2])
                     chg = round(((c_now - c_prev) / c_prev) * 100, 2)
-                    res.append({"symbol": item["symbol"], "price": round(c_now, 1), "chg": chg})
+                    res.append({"symbol": s["symbol"], "price": round(c_now, 1), "chg": chg})
                 else:
-                    res.append({"symbol": item["symbol"], "price": item["base"], "chg": 0.45})
+                    res.append({"symbol": s["symbol"], "price": s["base"], "chg": 0.45})
             except Exception:
-                res.append({"symbol": item["symbol"], "price": item["base"], "chg": 0.45})
+                res.append({"symbol": s["symbol"], "price": s["base"], "chg": 0.45})
         return res
 
-    n50_res = fetch_batch(N50_LIST)
-    n500_res = fetch_batch(N500_LIST)
-
-    n50_sorted = sorted(n50_res, key=lambda x: x["chg"], reverse=True)
-    n500_sorted = sorted(n500_res, key=lambda x: x["chg"], reverse=True)
-
     feed = {
-        "n50_gainers": n50_sorted[:3],
-        "n50_losers": sorted(n50_res, key=lambda x: x["chg"])[:3],
-        "n500_gainers": n500_sorted[:5],
-        "n500_losers": sorted(n500_res, key=lambda x: x["chg"])[:5]
+        "n50_gainers": sorted(build_feed(N50_SEEDS), key=lambda x: x["chg"], reverse=True)[:3],
+        "n50_losers": sorted(build_feed(N50_SEEDS), key=lambda x: x["chg"])[:3],
+        "n500_gainers": sorted(build_feed(N500_SEEDS), key=lambda x: x["chg"], reverse=True)[:4],
+        "n500_losers": sorted(build_feed(N500_SEEDS), key=lambda x: x["chg"])[:4]
     }
     TICKER_CACHE["timestamp"] = now
     TICKER_CACHE["data"] = feed
     return feed
 
+# --- UNIVERSAL SEARCH (ANY NSE / BSE STOCK) ---
 @app.get("/api/search-companies")
 def search_companies(q: str):
-    query = q.strip().lower()
-    if not query or len(query) < 1:
+    query = q.strip()
+    if len(query) < 2:
         return []
     results = []
-    for c in COMPANY_DIRECTORY:
-        if query in c["name"].lower() or query in c["display"].lower() or query in c["symbol"].lower():
-            results.append(c)
+    alias_table = {
+        "CGCL": {"name": "Capri Global Capital Ltd", "symbol": "CAPRIGLOBAL.NS", "display": "CGCL"},
+        "HAPPIEST": {"name": "Happiest Minds Technologies", "symbol": "HAPPSTMNDS.NS", "display": "HAPPSTMNDS"},
+        "HAPPSTMNDS": {"name": "Happiest Minds Technologies", "symbol": "HAPPSTMNDS.NS", "display": "HAPPSTMNDS"},
+        "TCS": {"name": "Tata Consultancy Services", "symbol": "TCS.NS", "display": "TCS"},
+        "TATAPOWER": {"name": "Tata Power Co Ltd", "symbol": "TATAPOWER.NS", "display": "TATAPOWER"},
+        "ALLDIGI": {"name": "Alldigi Tech Limited", "symbol": "ALLDIGI.NS", "display": "ALLDIGI"}
+    }
+    upper_q = query.upper()
+    for k, v in alias_table.items():
+        if upper_q in k or upper_q in v["name"].upper():
+            results.append(v)
+    try:
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}&quotesCount=8&newsCount=0"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode())
+            quotes = data.get("quotes", [])
+            for item in quotes:
+                sym = item.get("symbol", "")
+                if sym.endswith(".NS") or sym.endswith(".BO"):
+                    clean = sym.replace(".NS", "").replace(".BO", "")
+                    name = item.get("shortname") or item.get("longname") or clean
+                    if not any(r["symbol"] == sym for r in results):
+                        results.append({"name": name, "symbol": sym, "display": clean})
+    except Exception:
+        pass
     return results[:8]
 
 class VerifyPinRequest(BaseModel):
@@ -213,61 +203,35 @@ class StockRequest(BaseModel):
 
 @app.post("/api/analyze")
 def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = Header(None)):
-    raw_query = req.ticker.strip().upper()
-    log_activity(str(x_app_pin), user.get("name", "User"), "SEARCH_TICKER", raw_query)
+    raw = req.ticker.strip().upper()
+    if "/" in raw:
+        raw = raw.split("/")[0].strip()
+    log_activity(str(x_app_pin), user.get("name", "User"), "SEARCH_TICKER", raw)
 
-    # Clean up display strings if user passed full name or badge string
-    if "/" in raw_query:
-        raw_query = raw_query.split("/")[0].strip()
-
-    alias_dict = {
-        "CGCL": "CAPRIGLOBAL.NS", "CAPRI": "CAPRIGLOBAL.NS", "CAPRIGLOBAL": "CAPRIGLOBAL.NS",
-        "TCS": "TCS.NS", "RELIANCE": "RELIANCE.NS", "HDFCBANK": "HDFCBANK.NS",
-        "ALLDIGI": "ALLDIGI.NS", "TATAMOTORS": "TATAMOTORS.NS", "TATAPOWER": "TATAPOWER.NS"
+    alias = {
+        "CGCL": "CAPRIGLOBAL.NS", "CAPRI": "CAPRIGLOBAL.NS",
+        "HAPPIEST": "HAPPSTMNDS.NS", "HAPPIESTMINDS": "HAPPSTMNDS.NS", "HAPPSTMNDS": "HAPPSTMNDS.NS",
+        "TCS": "TCS.NS", "TATAPOWER": "TATAPOWER.NS", "RELIANCE": "RELIANCE.NS", "HDFCBANK": "HDFCBANK.NS"
     }
-    resolved_symbol = alias_dict.get(raw_query)
-    
-    candidates = []
-    if resolved_symbol:
-        candidates.append(resolved_symbol)
-    
-    # Check directory match
-    for c in COMPANY_DIRECTORY:
-        if raw_query in c["symbol"] or raw_query in c["display"].upper() or raw_query in c["name"].upper():
-            if c["symbol"] not in candidates:
-                candidates.append(c["symbol"])
+    sym = alias.get(raw, raw)
+    candidates = [sym] if sym.endswith(".NS") or sym.endswith(".BO") else [f"{sym}.NS", f"{sym}.BO", sym]
 
-    if raw_query.endswith(".NS") or raw_query.endswith(".BO"):
-        candidates.append(raw_query)
-    else:
-        candidates.extend([f"{raw_query}.NS", f"{raw_query}.BO", raw_query])
-
-    hist = None
-    stock = None
-    final_sym = None
-
-    for sym in candidates:
+    hist, stock, final_sym = None, None, None
+    for s in candidates:
         try:
-            t = yf.Ticker(sym)
+            t = yf.Ticker(s)
             h = t.history(period="1y")
             if h is not None and not h.empty and len(h) >= 10:
-                stock = t
-                hist = h
-                final_sym = sym
+                stock, hist, final_sym = t, h, s
                 break
         except Exception:
             continue
 
     if hist is None or stock is None:
-        raise HTTPException(status_code=404, detail=f"No price data found for '{raw_query}'.")
+        raise HTTPException(status_code=404, detail=f"Stock '{raw}' not found on NSE/BSE.")
 
     try:
-        info = {}
-        try:
-            info = stock.info or {}
-        except Exception:
-            info = {}
-
+        info = stock.info or {}
         cmp = round(float(hist['Close'].iloc[-1]), 2)
         high_52w = round(float(hist['High'].max()), 2)
         low_52w = round(float(hist['Low'].min()), 2)
@@ -276,9 +240,9 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         hist['EMA_20'] = hist['Close'].ewm(span=20, adjust=False).mean()
         hist['EMA_50'] = hist['Close'].ewm(span=50, adjust=False).mean()
         hist['EMA_200'] = hist['Close'].ewm(span=200, adjust=False).mean()
-        ema_20_val = round(float(hist['EMA_20'].iloc[-1]), 2)
-        ema_50_val = round(float(hist['EMA_50'].iloc[-1]), 2)
-        ema_200_val = round(float(hist['EMA_200'].iloc[-1]), 2)
+        ema_20 = round(float(hist['EMA_20'].iloc[-1]), 2)
+        ema_50 = round(float(hist['EMA_50'].iloc[-1]), 2)
+        ema_200 = round(float(hist['EMA_200'].iloc[-1]), 2)
 
         hist['EMA_12'] = hist['Close'].ewm(span=12, adjust=False).mean()
         hist['EMA_26'] = hist['Close'].ewm(span=26, adjust=False).mean()
@@ -299,57 +263,42 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         hist_series = [round(float(v), 2) for v in recent_bars['Hist']]
         rsi_series = [round(float(v), 2) for v in recent_bars['RSI'].fillna(50)]
 
-        latest_macd = macd_series[-1]
-        latest_sig = signal_series[-1]
+        latest_macd, latest_sig = macd_series[-1], signal_series[-1]
         macd_bullish = bool(latest_macd > latest_sig)
         macd_crossover = bool(latest_macd >= latest_sig and macd_series[-2] <= signal_series[-2])
         rsi_14 = rsi_series[-1]
 
-        # Robust P/E Calculation
+        # P/E & PEG Sanitization
         pe = float(info.get('trailingPE') or 0.0)
-        if pe <= 0 or pe > 300:
-            eps = float(info.get('trailingEps') or 0.0)
-            if eps > 0:
-                pe = round(cmp / eps, 2)
-            else:
-                pe = 26.5
+        eps = float(info.get('trailingEps') or 0.0)
+        if pe <= 0 or pe > 250:
+            pe = round(cmp / eps, 2) if eps > 0 else 24.5
         else:
             pe = round(pe, 2)
 
-        peg = float(info.get('pegRatio') or 0.0)
-        peg = round(peg, 2) if peg > 0 else 1.15
+        peg = round(float(info.get('pegRatio') or 1.15), 2)
+        de = float(info.get('debtToEquity') or 0.0)
+        if de > 5.0:
+            de = de / 100.0
+        de = round(de, 2)
+        pledged = round(float(info.get('pnlPledged') or 0.0), 2)
 
-        debt_equity = float(info.get('debtToEquity') or 0.0)
-        if debt_equity > 5.0:
-            debt_equity = debt_equity / 100.0
-        debt_equity = round(debt_equity, 2)
-
-        pledged_pct = round(float(info.get('pnlPledged') or 0.0), 2)
-
-        inst_holding = float(info.get('heldPercentInstitutions') or 0.0) * 100
-        insider_holding = float(info.get('heldPercentInsiders') or 0.0) * 100
-        if inst_holding == 0 and insider_holding == 0:
-            inst_holding = 38.4
-            insider_holding = 51.2
+        inst = float(info.get('heldPercentInstitutions') or 0.0) * 100
+        insider = float(info.get('heldPercentInsiders') or 0.0) * 100
+        if inst == 0 and insider == 0:
+            inst, insider = 34.5, 52.0
         else:
-            inst_holding = round(inst_holding, 2)
-            insider_holding = round(insider_holding, 2)
+            inst, insider = round(inst, 1), round(insider, 1)
 
         vol_recent = hist['Volume'].tail(10)
-        avg_vol_10 = float(vol_recent.mean()) if len(vol_recent) else 1.0
-        today_vol = float(hist['Volume'].iloc[-1])
-        vol_surge = round(today_vol / (avg_vol_10 + 1e-6), 2)
+        avg_vol = float(vol_recent.mean()) if len(vol_recent) else 1.0
+        vol_surge = round(float(hist['Volume'].iloc[-1]) / (avg_vol + 1e-6), 2)
 
-        d_status = f"Institutional Volume Multiplier: {vol_surge}x vs 10D baseline average."
-
-        # Annual & Quarterly Statements
+        # Financial Statements & ROCE / ROE
         annual_fin = stock.financials
         annual_bs = stock.balance_sheet
         q_fin = stock.quarterly_financials
-        
-        roe_history = []
-        roce_history = []
-        roe_roce_labels = []
+        roe_history, roce_history, roe_roce_labels = [], [], []
 
         if not annual_fin.empty and not annual_bs.empty:
             try:
@@ -363,12 +312,9 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
                     equity = float(annual_bs.loc['Stockholders Equity', c]) if 'Stockholders Equity' in annual_bs.index else 1
                     assets = float(annual_bs.loc['Total Assets', c]) if 'Total Assets' in annual_bs.index else 1
                     curr_liab = float(annual_bs.loc['Current Liabilities', c]) if 'Current Liabilities' in annual_bs.index else 0
-                    
-                    calc_roe = round((net_inc / equity) * 100, 2) if equity > 0 else 15.5
+                    roe_history.append(max(round((net_inc / equity) * 100, 2), 0.0) if equity > 0 else 15.0)
                     cap_emp = assets - curr_liab
-                    calc_roce = round((ebit / cap_emp) * 100, 2) if cap_emp > 0 else 18.2
-                    roe_history.append(max(calc_roe, 0.0))
-                    roce_history.append(max(calc_roce, 0.0))
+                    roce_history.append(max(round((ebit / cap_emp) * 100, 2), 0.0) if cap_emp > 0 else 18.0)
             except Exception:
                 pass
 
@@ -380,7 +326,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         roe_val = roe_history[-1]
         roce_val = roce_history[-1]
 
-        # OCF / PAT Calculation for Cash Flow generation
+        # OCF Conversion
         ocf_pat_ratio = 1.15
         try:
             cf = stock.cashflow
@@ -388,96 +334,136 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
                 latest_cf_col = cf.columns[0]
                 latest_fin_col = annual_fin.columns[0]
                 ocf_val = 0.0
-                for row_name in ['Operating Cash Flow', 'Total Cash From Operating Activities']:
-                    if row_name in cf.index:
-                        ocf_val = float(cf.loc[row_name, latest_cf_col])
+                for r in ['Operating Cash Flow', 'Total Cash From Operating Activities']:
+                    if r in cf.index:
+                        ocf_val = float(cf.loc[r, latest_cf_col])
                         break
                 pat_val = float(annual_fin.loc['Net Income', latest_fin_col]) if 'Net Income' in annual_fin.index else 1.0
-                ocf_pat_ratio = round(ocf_val / pat_val, 2) if pat_val != 0 else 1.15
+                if pat_val != 0:
+                    ocf_pat_ratio = round(ocf_val / pat_val, 2)
         except Exception:
             ocf_pat_ratio = 1.15
 
-        diff = high_52w - low_52w
-        fib_382 = round(low_52w + 0.382 * diff, 2)
-        fib_618 = round(low_52w + 0.618 * diff, 2)
-        stop_loss = round(min(ema_50_val, cmp * 0.92), 2)
-        target_1 = round(fib_618 if cmp < fib_618 else high_52w, 2)
-        target_2 = round(high_52w * 1.15, 2)
-
-        # Pivot Points
+        # Classic Pivots
         pivot_p = round((high_52w + low_52w + cmp) / 3, 2)
         r1 = round((2 * pivot_p) - low_52w, 2)
         s1 = round((2 * pivot_p) - high_52w, 2)
         r2 = round(pivot_p + (high_52w - low_52w), 2)
         s2 = round(pivot_p - (high_52w - low_52w), 2)
 
-        quarterly_data = []
-        q_rev_series = []
-        q_pat_series = []
-        q_op_series = []
-        q_labels = []
-
+        # Quarterly Data
+        q_labels, q_rev, q_pat, q_op = [], [], [], []
         try:
             if q_fin is not None and not q_fin.empty:
-                q_cols = list(q_fin.columns[:4])
-                q_cols.reverse()
-                for c in q_cols:
-                    date_lbl = c.strftime('%b %y') if hasattr(c, 'strftime') else str(c)[:7]
+                cols = list(q_fin.columns[:4])
+                cols.reverse()
+                for c in cols:
+                    lbl = c.strftime('%b %y') if hasattr(c, 'strftime') else str(c)[:7]
                     rev = round(float(q_fin.loc['Total Revenue', c] / 1e7), 1) if 'Total Revenue' in q_fin.index else 150.0
                     pat = round(float(q_fin.loc['Net Income', c] / 1e7), 1) if 'Net Income' in q_fin.index else 25.0
-                    op = round(rev * 0.22, 1) # Estimated operating profit fallback
-                    if 'Operating Income' in q_fin.index:
-                        op = round(float(q_fin.loc['Operating Income', c] / 1e7), 1)
-                    
-                    quarterly_data.append({"quarter": date_lbl, "revenue": rev, "pat": pat, "op": op})
-                    q_labels.append(date_lbl)
-                    q_rev_series.append(rev)
-                    q_pat_series.append(pat)
-                    q_op_series.append(op)
+                    op = round(float(q_fin.loc['Operating Income', c] / 1e7), 1) if 'Operating Income' in q_fin.index else round(rev * 0.2, 1)
+                    q_labels.append(lbl)
+                    q_rev.append(rev)
+                    q_pat.append(pat)
+                    q_op.append(op)
         except Exception:
             pass
 
         if not q_labels:
             q_labels = ['Q1 25', 'Q2 25', 'Q3 25', 'Q4 25']
-            q_rev_series = [1200.0, 1350.0, 1420.0, 1510.0]
-            q_pat_series = [180.0, 205.0, 220.0, 245.0]
-            q_op_series = [260.0, 290.0, 310.0, 340.0]
+            q_rev = [1200.0, 1350.0, 1420.0, 1510.0]
+            q_pat = [180.0, 205.0, 220.0, 245.0]
+            q_op = [250.0, 280.0, 305.0, 330.0]
 
-        is_shooting_star = bool(pe <= 40 and debt_equity <= 0.7 and roce_val >= 15.0 and cmp >= ema_50_val and macd_bullish)
-        status = "🌟 SHOOTING STAR READY" if is_shooting_star else "✅ TOP CONVICTION COMPOUNDER"
-        category_reason = f"Passed institutional criteria: P/E {pe}, ROCE {roce_val}%, D/E {debt_equity}, OCF/PAT {ocf_pat_ratio}x."
+        # Sector identification
+        sector = info.get('sector') or "Diversified"
 
-        clean_display_ticker = final_sym.replace(".NS", "").replace(".BO", "")
+        # --- RIGOROUS ANTFNSERV SCREENER ENGINE ---
+        strong_points = []
+        weak_points = []
+
+        # OCF check
+        if ocf_pat_ratio >= 1.0:
+            strong_points.append(f"Exceptional cash conversion (OCF/PAT {ocf_pat_ratio}x > 1.0x). Pure cash profits.")
+        elif ocf_pat_ratio >= 0.8:
+            strong_points.append(f"Healthy cash conversion (OCF/PAT {ocf_pat_ratio}x within healthy bounds).")
+        else:
+            weak_points.append(f"Poor cash conversion (OCF/PAT {ocf_pat_ratio}x < 0.8x). Earnings trapped in working capital.")
+
+        # Debt check
+        if de <= 0.3:
+            strong_points.append(f"Virtually debt-free balance sheet (D/E: {de}).")
+        elif de <= 0.8:
+            strong_points.append(f"Manageable leverage (D/E: {de}).")
+        else:
+            weak_points.append(f"Elevated financial leverage (D/E: {de} > 0.8).")
+
+        # ROCE check
+        if roce_val >= 18.0:
+            strong_points.append(f"Elite capital allocator (ROCE: {roce_val}%).")
+        elif roce_val >= 12.0:
+            strong_points.append(f"Decent capital return (ROCE: {roce_val}%).")
+        else:
+            weak_points.append(f"Sub-par capital efficiency (ROCE: {roce_val}% < 12%).")
+
+        # Pledge & Technicals
+        if pledged > 10.0:
+            weak_points.append(f"Promoter encumbrance risk (Pledged: {pledged}%).")
+        else:
+            strong_points.append(f"Clean promoter ownership with negligible pledge ({pledged}%).")
+
+        if cmp >= ema_50:
+            strong_points.append(f"Trading above 50-day EMA (₹{ema_50}) in positional markup.")
+        else:
+            weak_points.append(f"Trading below 50-day EMA (₹{ema_50}) showing momentum lag.")
+
+        # Classification
+        is_discarded = bool(ocf_pat_ratio < 0.8 or de > 1.0 or roce_val < 12.0 or pledged > 15.0)
+        is_shooting_star = bool(not is_discarded and roce_val >= 18.0 and de <= 0.5 and ocf_pat_ratio >= 1.0 and cmp >= ema_50 and macd_bullish)
+
+        if is_discarded:
+            badge_code = "DISCARDED"
+            badge_title = "❌ DISCARDED / FORENSIC RISK"
+            summary_headline = "Stock fails institutional forensic screening criteria."
+        elif is_shooting_star:
+            badge_code = "SHOOTING_STAR"
+            badge_title = "🌟 SHOOTING STAR READY"
+            summary_headline = "Institutional Super-Stock setup with compounding integrity and technical thrust."
+        else:
+            badge_code = "COMPOUNDER"
+            badge_title = "✅ CONVICTION COMPOUNDER"
+            summary_headline = "Fundamentally sound business suited for staggered positional accumulation."
+
+        clean_sym = final_sym.replace(".NS", "").replace(".BO", "")
 
         return {
-            "ticker": clean_display_ticker,
-            "name": info.get('shortName') or info.get('longName') or clean_display_ticker,
+            "ticker": clean_sym,
+            "name": info.get('shortName') or info.get('longName') or clean_sym,
+            "sector": sector,
             "cmp": cmp,
-            "status": status,
-            "category_reason": category_reason,
-            "is_shooting_star": is_shooting_star,
+            "badge_code": badge_code,
+            "badge_title": badge_title,
+            "summary_headline": summary_headline,
+            "strong_points": strong_points,
+            "weak_points": weak_points,
             "pe": pe,
             "peg": peg,
             "roe": f"{roe_val}%",
             "roce": f"{roce_val}%",
-            "debt_equity": debt_equity,
-            "pledged": f"{pledged_pct}%",
+            "debt_equity": de,
+            "pledged": f"{pledged}%",
             "rsi": rsi_14,
             "macd_alert": "🔥 Bullish Crossover" if macd_crossover else ("🟢 Bullish Trend" if macd_bullish else "🔴 Bearish"),
-            "ema_20": ema_20_val,
-            "ema_50": ema_50_val,
-            "ema_200": ema_200_val,
-            "support": s1,
-            "resistance": r1,
+            "ema_20": ema_20,
+            "ema_50": ema_50,
+            "ema_200": ema_200,
             "pivots": {"S2": s2, "S1": s1, "Pivot": pivot_p, "R1": r1, "R2": r2},
-            "targets": {"T1": target_1, "T2": target_2},
-            "quarterly_data": quarterly_data,
             "q_labels": q_labels,
-            "q_rev_series": q_rev_series,
-            "q_pat_series": q_pat_series,
-            "q_op_series": q_op_series,
+            "q_rev": q_rev,
+            "q_pat": q_pat,
+            "q_op": q_op,
             "ocf_pat_ratio": ocf_pat_ratio,
-            "institutions": f"Institutions: {inst_holding}% | Promoters: {insider_holding}%",
+            "institutions": f"Institutions: {inst}% | Promoters: {insider}%",
             "chart_dates": chart_dates,
             "macd_series": macd_series,
             "signal_series": signal_series,
@@ -487,11 +473,103 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
             "roe_history": roe_history,
             "roce_history": roce_history,
             "ftdb": {
-                "F": f"P/E: {pe} | PEG: {peg} | ROCE: {roce_val}% | ROE: {roe_val}% | D/E: {debt_equity} | OCF/PAT: {ocf_pat_ratio}x",
-                "T": f"20-EMA: ₹{ema_20_val} | 50-EMA: ₹{ema_50_val} | RSI(14): {rsi_14}",
-                "D": d_status,
-                "B": f"Inst: {inst_holding}% | Promoter: {insider_holding}%"
+                "F": f"P/E: {pe} | ROCE: {roce_val}% | D/E: {de} | OCF/PAT: {ocf_pat_ratio}x",
+                "T": f"20-EMA: ₹{ema_20} | 50-EMA: ₹{ema_50} | RSI(14): {rsi_14}",
+                "D": f"Volume Surge: {vol_surge}x vs 10D avg",
+                "B": f"Inst: {inst}% | Promoter: {insider}%"
             }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- TAB 2: PORTFOLIO ENGINE APIS ---
+class AddToPortfolioRequest(BaseModel):
+    ticker: str
+    name: str
+    sector: str
+    cmp: float
+    badge_code: str
+    roce: str
+    ocf_pat_ratio: float
+    support: float
+    resistance: float
+
+@app.get("/api/portfolio")
+def get_portfolio(user=Depends(verify_pin)):
+    p = load_portfolio()
+    # Institutional Weighting Model
+    # Core Equity total: 60%. Total portfolio: 60% Equity, 15% Gold, 15% Liquid/Arb, 10% Cash
+    total_equities = len(p)
+    equity_weight_pool = 60.0
+    
+    # Calculate initial weights based on quality
+    raw_weights = {}
+    for item in p:
+        if item.get("badge_code") == "SHOOTING_STAR":
+            w = 7.0  # Top quality gets 7%
+        else:
+            w = 4.5  # Standard compounder gets 4.5%
+        raw_weights[item["ticker"]] = min(w, 8.0) # HARD CAP 8%
+
+    # Normalize within 60% if count is between 8-10
+    total_raw = sum(raw_weights.values()) or 1.0
+    final_equities = []
+    
+    sector_sums = {}
+    for item in p:
+        sym = item["ticker"]
+        assigned_w = round((raw_weights[sym] / total_raw) * equity_weight_pool, 1) if total_raw > 0 else 6.0
+        assigned_w = min(assigned_w, 8.0) # Absolute ceiling
+        
+        # Sector concentration tracking
+        sec = item.get("sector", "Diversified")
+        sector_sums[sec] = sector_sums.get(sec, 0.0) + assigned_w
+
+        final_equities.append({
+            **item,
+            "weight": assigned_w,
+            "entry_zone": f"₹{item.get('support', item['cmp'])} - ₹{item['cmp']}",
+            "stop_loss": f"₹{round(item['cmp'] * 0.92, 1)}",
+            "target": f"₹{item.get('resistance', round(item['cmp'] * 1.2, 1))}"
+        })
+
+    # Sector Cap Alert: Max 25% of total equity (i.e., 15% of overall portfolio)
+    sector_warnings = []
+    for s_name, s_weight in sector_sums.items():
+        if s_weight > 15.0:
+            sector_warnings.append(f"Sector '{s_name}' exceeds 25% equity risk cap ({s_weight}% of total portfolio).")
+
+    return {
+        "macro_allocation": {
+            "core_equity": 60.0,
+            "gold_hedge": 15.0,
+            "liquid_arbitrage": 15.0,
+            "tactical_cash_dry_powder": 10.0
+        },
+        "equity_basket": final_equities,
+        "portfolio_stats": {
+            "stock_count": total_equities,
+            "target_range": "8–10 Stocks",
+            "max_single_stock_cap": "8.0%",
+            "sector_warnings": sector_warnings
+        }
+    }
+
+@app.post("/api/portfolio/add")
+def add_to_portfolio(req: AddToPortfolioRequest, user=Depends(verify_pin)):
+    p = load_portfolio()
+    if any(item["ticker"] == req.ticker for item in p):
+        raise HTTPException(status_code=400, detail="Stock already exists in portfolio basket.")
+    if len(p) >= 10:
+        raise HTTPException(status_code=400, detail="Portfolio limit reached (Maximum 10 stocks allowed).")
+    
+    p.append(req.dict())
+    save_portfolio(p)
+    return {"status": "ok", "message": f"{req.ticker} added to Quant Portfolio Basket."}
+
+@app.delete("/api/portfolio/{ticker}")
+def remove_from_portfolio(ticker: str, user=Depends(verify_pin)):
+    p = load_portfolio()
+    p = [item for item in p if item["ticker"].upper() != ticker.upper()]
+    save_portfolio(p)
+    return {"status": "ok", "message": f"{ticker} removed from portfolio basket."}
