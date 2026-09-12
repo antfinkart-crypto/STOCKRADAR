@@ -1,0 +1,30 @@
+[
+  {
+    "timestamp": "2026-09-09 18:19:04",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "LOGIN",
+    "details": "Terminal Unlocked"
+  },
+  {
+    "timestamp": "2026-09-09 18:19:17",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "CAPRIGLOBAL.NS"
+  },
+  {
+    "timestamp": "2026-09-09 18:19:23",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "CGCL / CAPRIGLOBAL"
+  },
+  {
+    "timestamp": "2026-09-09 18:20:24",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "TCS.BO"
+  }
+]
