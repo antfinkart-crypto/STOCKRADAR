@@ -24,7 +24,6 @@
     }
   </script>
   <style>
-    /* 3X TICKER SPEED ANIMATION */
     @keyframes marquee {
       0% { transform: translateX(0%); }
       100% { transform: translateX(-50%); }
@@ -32,7 +31,7 @@
     .animate-marquee {
       display: inline-flex;
       white-space: nowrap;
-      animation: marquee 13s linear infinite; /* 3x faster speed */
+      animation: marquee 13s linear infinite; /* 3x speed */
     }
     .animate-marquee:hover {
       animation-play-state: paused;
@@ -112,12 +111,12 @@
         </div>
       </header>
 
-      <!-- SEARCH BAR -->
+      <!-- SEARCH BAR & DROPDOWN FIXED -->
       <div class="max-w-2xl mb-4 relative">
         <div class="flex gap-2">
           <div class="relative flex-1">
             <input id="tickerInput" type="text" autocomplete="off"
-                   placeholder="ENTER COMPANY NAME OR SYMBOL (E.G. CGCL, TATA, TCS, RELIANCE)" 
+                   placeholder="ENTER COMPANY NAME OR SYMBOL (E.G. CGCL, TCS, RELIANCE)" 
                    class="w-full bg-white dark:bg-slate-900 text-slate-950 dark:text-white placeholder:text-slate-400 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-base font-black uppercase focus:outline-none focus:border-blue-600 shadow-sm">
             
             <div id="suggestBox" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden hidden">
@@ -129,10 +128,6 @@
             SCAN
           </button>
         </div>
-      </div>
-
-      <div id="recentSection" class="mb-4 hidden">
-        <div class="flex gap-2 items-center flex-wrap" id="recentList"></div>
       </div>
 
       <!-- DASHBOARD OUTPUT -->
@@ -154,7 +149,37 @@
           </div>
         </div>
 
-        <!-- CHARTS WITH SYNCHRONIZED DUAL READINGS (INDEX MODE) -->
+        <!-- UPSTOX STYLE PIVOT LEVELS SUMMARY BAR -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Classic Pivot Levels (Upstox Style)</h3>
+            <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded">Support & Resistance Grid</span>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-center font-mono">
+            <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div class="text-[10px] text-slate-400 font-bold">S2 Support</div>
+              <div id="pivotS2" class="text-sm font-black text-emerald-600">--</div>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div class="text-[10px] text-slate-400 font-bold">S1 Support</div>
+              <div id="pivotS1" class="text-sm font-black text-emerald-500">--</div>
+            </div>
+            <div class="bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-xl border border-blue-200 dark:border-blue-900">
+              <div class="text-[10px] text-blue-500 font-bold">Pivot Point</div>
+              <div id="pivotMid" class="text-sm font-black text-blue-600 dark:text-blue-400">--</div>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div class="text-[10px] text-slate-400 font-bold">R1 Resistance</div>
+              <div id="pivotR1" class="text-sm font-black text-rose-500">--</div>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div class="text-[10px] text-slate-400 font-bold">R2 Resistance</div>
+              <div id="pivotR2" class="text-sm font-black text-rose-600">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHARTS WITH SYNCHRONIZED DUAL READINGS & SEGMENTED TABS -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
             <div class="flex items-center justify-between mb-2">
@@ -305,7 +330,7 @@
       const q = e.target.value.trim();
       const box = document.getElementById('suggestBox');
       const list = document.getElementById('suggestList');
-      if (q.length < 2) { box.classList.add('hidden'); return; }
+      if (q.length < 1) { box.classList.add('hidden'); return; }
       try {
         const res = await fetch(`/api/search-companies?q=${encodeURIComponent(q)}`);
         const items = await res.json();
@@ -316,7 +341,8 @@
           row.className = 'px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer flex justify-between items-center text-xs font-bold';
           row.innerHTML = `<span>${item.name}</span> <span class="font-mono text-blue-500">${item.display}</span>`;
           row.onclick = () => {
-            document.getElementById('tickerInput').value = item.display;
+            const cleanSym = item.symbol.replace('.NS', '').replace('.BO', '');
+            document.getElementById('tickerInput').value = cleanSym;
             box.classList.add('hidden');
             runAnalysis(item.symbol);
           };
@@ -341,17 +367,15 @@
       } catch (err) { alert('Server error.'); }
     }
 
-    // SYNCHRONIZED CHARTS WITH DUAL READINGS (INDEX MODE INTERACTION)
     function renderCharts(data) {
       const sharedOptions = {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false }, // Dual-reading mouseover sync
+        interaction: { mode: 'index', intersect: false },
         plugins: { legend: { labels: { font: { weight: 'bold', size: 9 } } } },
         scales: { y: { ticks: { font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } }
       };
 
-      // 1. Revenue & PAT Dual Chart
       if (revPatChartInstance) revPatChartInstance.destroy();
       revPatChartInstance = new Chart(document.getElementById('revPatChart'), {
         type: 'bar',
@@ -365,7 +389,6 @@
         options: sharedOptions
       });
 
-      // 2. ROE vs ROCE Dual Chart
       if (roeRoceChartInstance) roeRoceChartInstance.destroy();
       roeRoceChartInstance = new Chart(document.getElementById('roeRoceChart'), {
         type: 'line',
@@ -379,7 +402,6 @@
         options: sharedOptions
       });
 
-      // 3. MACD & RSI Synced Oscillators
       if (momentumChartInstance) momentumChartInstance.destroy();
       momentumChartInstance = new Chart(document.getElementById('momentumChart'), {
         data: {
@@ -407,6 +429,12 @@
       document.getElementById('instHolding').innerText = data.institutions;
       document.getElementById('stockStatus').innerText = data.status;
       document.getElementById('stockStatus').className = 'text-xs font-black px-3 py-1 rounded-full ' + (data.is_shooting_star ? 'bg-amber-400 text-slate-950' : 'bg-emerald-100 text-emerald-800');
+
+      document.getElementById('pivotS2').innerText = '₹' + data.pivots.S2;
+      document.getElementById('pivotS1').innerText = '₹' + data.pivots.S1;
+      document.getElementById('pivotMid').innerText = '₹' + data.pivots.Pivot;
+      document.getElementById('pivotR1').innerText = '₹' + data.pivots.R1;
+      document.getElementById('pivotR2').innerText = '₹' + data.pivots.R2;
 
       document.getElementById('ftdbF').innerText = data.ftdb.F;
       document.getElementById('ftdbT').innerText = data.ftdb.T;
