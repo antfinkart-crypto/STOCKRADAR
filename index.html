@@ -31,7 +31,7 @@
     .animate-marquee {
       display: inline-flex;
       white-space: nowrap;
-      animation: marquee 13s linear infinite; /* 3x speed */
+      animation: marquee 13s linear infinite;
     }
     .animate-marquee:hover {
       animation-play-state: paused;
@@ -111,12 +111,12 @@
         </div>
       </header>
 
-      <!-- SEARCH BAR & DROPDOWN FIXED -->
+      <!-- SEARCH BAR -->
       <div class="max-w-2xl mb-4 relative">
         <div class="flex gap-2">
           <div class="relative flex-1">
             <input id="tickerInput" type="text" autocomplete="off"
-                   placeholder="ENTER COMPANY NAME OR SYMBOL (E.G. CGCL, TCS, RELIANCE)" 
+                   placeholder="ENTER COMPANY NAME OR SYMBOL (E.G. CGCL, TCS, ALLDIGI)" 
                    class="w-full bg-white dark:bg-slate-900 text-slate-950 dark:text-white placeholder:text-slate-400 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-base font-black uppercase focus:outline-none focus:border-blue-600 shadow-sm">
             
             <div id="suggestBox" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden hidden">
@@ -149,44 +149,75 @@
           </div>
         </div>
 
-        <!-- UPSTOX STYLE PIVOT LEVELS SUMMARY BAR -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Classic Pivot Levels (Upstox Style)</h3>
-            <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded">Support & Resistance Grid</span>
+        <!-- UPSTOX STYLE TECHNICAL SUMMARY GAUGE & PIVOTS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Technical Summary</h3>
+              <span id="techSummaryBadge" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">Neutral</span>
+            </div>
+            <div class="space-y-2">
+              <div class="flex justify-between text-[11px] font-bold text-slate-500">
+                <span>Bearish</span>
+                <span>Neutral</span>
+                <span>Bullish</span>
+              </div>
+              <div class="h-3 w-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-500 rounded-full relative p-0.5 shadow-inner">
+                <div id="gaugeIndicator" class="h-2 w-2 rounded-full bg-white border-2 border-slate-900 absolute top-0.5 transition-all duration-500 shadow" style="left: 50%;"></div>
+              </div>
+            </div>
+            <div id="techSummaryDesc" class="text-[11px] font-bold text-slate-600 dark:text-slate-400 mt-2">
+              Oscillators and moving averages indicating balanced momentum.
+            </div>
           </div>
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-center font-mono">
-            <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-              <div class="text-[10px] text-slate-400 font-bold">S2 Support</div>
-              <div id="pivotS2" class="text-sm font-black text-emerald-600">--</div>
+
+          <div class="md:col-span-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Classic Pivot Levels (Upstox Style)</h3>
+              <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded">Support & Resistance Grid</span>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-              <div class="text-[10px] text-slate-400 font-bold">S1 Support</div>
-              <div id="pivotS1" class="text-sm font-black text-emerald-500">--</div>
-            </div>
-            <div class="bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-xl border border-blue-200 dark:border-blue-900">
-              <div class="text-[10px] text-blue-500 font-bold">Pivot Point</div>
-              <div id="pivotMid" class="text-sm font-black text-blue-600 dark:text-blue-400">--</div>
-            </div>
-            <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-              <div class="text-[10px] text-slate-400 font-bold">R1 Resistance</div>
-              <div id="pivotR1" class="text-sm font-black text-rose-500">--</div>
-            </div>
-            <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-              <div class="text-[10px] text-slate-400 font-bold">R2 Resistance</div>
-              <div id="pivotR2" class="text-sm font-black text-rose-600">--</div>
+            <div class="grid grid-cols-5 gap-2 text-center font-mono">
+              <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div class="text-[9px] text-slate-400 font-bold">S2</div>
+                <div id="pivotS2" class="text-xs md:text-sm font-black text-emerald-600">--</div>
+              </div>
+              <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div class="text-[9px] text-slate-400 font-bold">S1</div>
+                <div id="pivotS1" class="text-xs md:text-sm font-black text-emerald-500">--</div>
+              </div>
+              <div class="bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-xl border border-blue-200 dark:border-blue-900">
+                <div class="text-[9px] text-blue-500 font-bold">PIVOT</div>
+                <div id="pivotMid" class="text-xs md:text-sm font-black text-blue-600 dark:text-blue-400">--</div>
+              </div>
+              <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div class="text-[9px] text-slate-400 font-bold">R1</div>
+                <div id="pivotR1" class="text-xs md:text-sm font-black text-rose-500">--</div>
+              </div>
+              <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div class="text-[9px] text-slate-400 font-bold">R2</div>
+                <div id="pivotR2" class="text-xs md:text-sm font-black text-rose-600">--</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- CHARTS WITH SYNCHRONIZED DUAL READINGS & SEGMENTED TABS -->
+        <!-- CHARTS WITH UPSTOX STYLE INTERACTIVE FINANCIAL TABS -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Quarterly Revenue & PAT</h3>
-              <span class="text-[10px] font-mono font-bold text-slate-400">₹ Cr (Dual Sync)</span>
+          <!-- Segmented Financial Statement Card -->
+          <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Financial Statement</h3>
+                <span class="text-[10px] font-mono font-bold text-slate-400">₹ Cr (Quarterly)</span>
+              </div>
+              <!-- Upstox Style Segmented Tabs -->
+              <div class="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl mb-3 border border-slate-200 dark:border-slate-800">
+                <button onclick="switchFinancialTab('revenue')" id="tabRev" class="flex-1 py-1 text-[11px] font-black rounded-lg bg-blue-600 text-white shadow-sm transition">Revenue</button>
+                <button onclick="switchFinancialTab('op')" id="tabOp" class="flex-1 py-1 text-[11px] font-black rounded-lg text-slate-600 dark:text-slate-400 transition">Operating</button>
+                <button onclick="switchFinancialTab('pat')" id="tabPat" class="flex-1 py-1 text-[11px] font-black rounded-lg text-slate-600 dark:text-slate-400 transition">Net Profit</button>
+              </div>
             </div>
-            <div class="h-52"><canvas id="revPatChart"></canvas></div>
+            <div class="h-44"><canvas id="financialChart"></canvas></div>
           </div>
 
           <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
@@ -248,11 +279,12 @@
   </div>
 
   <script>
-    let revPatChartInstance = null;
+    let financialChartInstance = null;
     let roeRoceChartInstance = null;
     let momentumChartInstance = null;
     let currentAuth = null;
     let currentStockData = null;
+    let activeFinancialMetric = 'revenue';
 
     window.addEventListener('DOMContentLoaded', () => {
       loadLiveTicker();
@@ -367,6 +399,49 @@
       } catch (err) { alert('Server error.'); }
     }
 
+    function switchFinancialTab(metric) {
+      activeFinancialMetric = metric;
+      ['Rev', 'Op', 'Pat'].forEach(m => {
+        const btn = document.getElementById('tab' + m);
+        btn.className = 'flex-1 py-1 text-[11px] font-black rounded-lg text-slate-600 dark:text-slate-400 transition';
+      });
+      document.getElementById('tab' + metric.charAt(0).toUpperCase() + metric.slice(1)).className = 'flex-1 py-1 text-[11px] font-black rounded-lg bg-blue-600 text-white shadow-sm transition';
+      if (currentStockData) renderFinancialChart(currentStockData);
+    }
+
+    function renderFinancialChart(data) {
+      const sharedOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { ticks: { font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } }
+      };
+
+      let seriesData = data.q_rev_series;
+      let barColor = 'rgba(37, 99, 235, 0.8)';
+      let labelName = 'Revenue (₹ Cr)';
+
+      if (activeFinancialMetric === 'op') {
+        seriesData = data.q_op_series;
+        barColor = 'rgba(245, 158, 11, 0.8)';
+        labelName = 'Operating Profit (₹ Cr)';
+      } else if (activeFinancialMetric === 'pat') {
+        seriesData = data.q_pat_series;
+        barColor = 'rgba(16, 185, 129, 0.8)';
+        labelName = 'Net Profit (₹ Cr)';
+      }
+
+      if (financialChartInstance) financialChartInstance.destroy();
+      financialChartInstance = new Chart(document.getElementById('financialChart'), {
+        type: 'bar',
+        data: {
+          labels: data.q_labels,
+          datasets: [{ label: labelName, data: seriesData, backgroundColor: barColor, borderRadius: 4 }]
+        },
+        options: sharedOptions
+      });
+    }
+
     function renderCharts(data) {
       const sharedOptions = {
         responsive: true,
@@ -376,18 +451,7 @@
         scales: { y: { ticks: { font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } }
       };
 
-      if (revPatChartInstance) revPatChartInstance.destroy();
-      revPatChartInstance = new Chart(document.getElementById('revPatChart'), {
-        type: 'bar',
-        data: {
-          labels: data.q_labels,
-          datasets: [
-            { label: 'Revenue (₹ Cr)', data: data.q_rev_series, backgroundColor: 'rgba(37, 99, 235, 0.8)', borderRadius: 4 },
-            { label: 'PAT (₹ Cr)', data: data.q_pat_series, backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 4 }
-          ]
-        },
-        options: sharedOptions
-      });
+      renderFinancialChart(data);
 
       if (roeRoceChartInstance) roeRoceChartInstance.destroy();
       roeRoceChartInstance = new Chart(document.getElementById('roeRoceChart'), {
@@ -435,6 +499,25 @@
       document.getElementById('pivotMid').innerText = '₹' + data.pivots.Pivot;
       document.getElementById('pivotR1').innerText = '₹' + data.pivots.R1;
       document.getElementById('pivotR2').innerText = '₹' + data.pivots.R2;
+
+      // Upstox Style Gauge Positioning based on RSI & MACD
+      const rsi = data.rsi;
+      let gaugePos = '50%';
+      let badgeText = 'Neutral';
+      let badgeClass = 'bg-amber-100 text-amber-800';
+      if (rsi > 60) {
+        gaugePos = '78%';
+        badgeText = 'Bullish';
+        badgeClass = 'bg-emerald-100 text-emerald-800';
+      } else if (rsi < 42) {
+        gaugePos = '22%';
+        badgeText = 'Bearish';
+        badgeClass = 'bg-rose-100 text-rose-800';
+      }
+      document.getElementById('gaugeIndicator').style.left = gaugePos;
+      const badge = document.getElementById('techSummaryBadge');
+      badge.innerText = badgeText;
+      badge.className = 'text-[10px] font-mono font-bold px-2 py-0.5 rounded ' + badgeClass;
 
       document.getElementById('ftdbF').innerText = data.ftdb.F;
       document.getElementById('ftdbT').innerText = data.ftdb.T;

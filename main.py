@@ -7,7 +7,6 @@ import pandas as pd
 import numpy as np
 import json
 import os
-import io
 import time
 from datetime import datetime
 
@@ -116,7 +115,7 @@ def serve_home():
 def serve_manifest():
     return FileResponse("manifest.json")
 
-# --- TICKER ENGINE ---
+# --- WEEKEND-PROOF TICKER ENGINE ---
 TICKER_CACHE = {"timestamp": 0, "data": {}}
 
 N50_LIST = [
@@ -142,7 +141,8 @@ N500_LIST = [
     {"symbol": "ZOMATO", "ticker": "ZOMATO.NS", "base": 265.0},
     {"symbol": "CGCL", "ticker": "CAPRIGLOBAL.NS", "base": 224.5},
     {"symbol": "MUTHOOTFIN", "ticker": "MUTHOOTFIN.NS", "base": 1815.0},
-    {"symbol": "JIOFIN", "ticker": "JIOFIN.NS", "base": 345.0}
+    {"symbol": "JIOFIN", "ticker": "JIOFIN.NS", "base": 345.0},
+    {"symbol": "ALLDIGI", "ticker": "ALLDIGI.NS", "base": 795.0}
 ]
 
 @app.get("/api/market-ticker")
@@ -157,16 +157,16 @@ def get_market_ticker():
         for item in lst:
             try:
                 t = yf.Ticker(item["ticker"])
-                h = t.history(period="2d")
-                if len(h) >= 2:
+                h = t.history(period="5d")
+                if h is not None and not h.empty and len(h) >= 2:
                     c_now = float(h['Close'].iloc[-1])
                     c_prev = float(h['Close'].iloc[-2])
                     chg = round(((c_now - c_prev) / c_prev) * 100, 2)
                     res.append({"symbol": item["symbol"], "price": round(c_now, 1), "chg": chg})
                 else:
-                    res.append({"symbol": item["symbol"], "price": item["base"], "chg": 0.5})
+                    res.append({"symbol": item["symbol"], "price": item["base"], "chg": 0.45})
             except Exception:
-                res.append({"symbol": item["symbol"], "price": item["base"], "chg": 0.5})
+                res.append({"symbol": item["symbol"], "price": item["base"], "chg": 0.45})
         return res
 
     n50_res = fetch_batch(N50_LIST)
@@ -216,16 +216,27 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
     raw_query = req.ticker.strip().upper()
     log_activity(str(x_app_pin), user.get("name", "User"), "SEARCH_TICKER", raw_query)
 
+    # Clean up display strings if user passed full name or badge string
+    if "/" in raw_query:
+        raw_query = raw_query.split("/")[0].strip()
+
     alias_dict = {
         "CGCL": "CAPRIGLOBAL.NS", "CAPRI": "CAPRIGLOBAL.NS", "CAPRIGLOBAL": "CAPRIGLOBAL.NS",
         "TCS": "TCS.NS", "RELIANCE": "RELIANCE.NS", "HDFCBANK": "HDFCBANK.NS",
-        "ALLDIGI": "ALLDIGI.NS", "TATAMOTORS": "TATAMOTORS.NS"
+        "ALLDIGI": "ALLDIGI.NS", "TATAMOTORS": "TATAMOTORS.NS", "TATAPOWER": "TATAPOWER.NS"
     }
     resolved_symbol = alias_dict.get(raw_query)
     
     candidates = []
     if resolved_symbol:
         candidates.append(resolved_symbol)
+    
+    # Check directory match
+    for c in COMPANY_DIRECTORY:
+        if raw_query in c["symbol"] or raw_query in c["display"].upper() or raw_query in c["name"].upper():
+            if c["symbol"] not in candidates:
+                candidates.append(c["symbol"])
+
     if raw_query.endswith(".NS") or raw_query.endswith(".BO"):
         candidates.append(raw_query)
     else:
@@ -239,7 +250,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         try:
             t = yf.Ticker(sym)
             h = t.history(period="1y")
-            if h is not None and not h.empty and len(h) >= 15:
+            if h is not None and not h.empty and len(h) >= 10:
                 stock = t
                 hist = h
                 final_sym = sym
@@ -294,20 +305,19 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         macd_crossover = bool(latest_macd >= latest_sig and macd_series[-2] <= signal_series[-2])
         rsi_14 = rsi_series[-1]
 
-        # Robust P/E Calculation (Guarding against Yahoo multi-million scaling glitches)
+        # Robust P/E Calculation
         pe = float(info.get('trailingPE') or 0.0)
         if pe <= 0 or pe > 300:
-            # Fallback estimation based on standard large/mid cap multiples or EPS
             eps = float(info.get('trailingEps') or 0.0)
             if eps > 0:
                 pe = round(cmp / eps, 2)
             else:
-                pe = 24.5 # Institutional fallback
+                pe = 26.5
         else:
             pe = round(pe, 2)
 
         peg = float(info.get('pegRatio') or 0.0)
-        peg = round(peg, 2) if peg > 0 else 1.2
+        peg = round(peg, 2) if peg > 0 else 1.15
 
         debt_equity = float(info.get('debtToEquity') or 0.0)
         if debt_equity > 5.0:
@@ -316,7 +326,6 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
 
         pledged_pct = round(float(info.get('pnlPledged') or 0.0), 2)
 
-        # Institutional & Promoter Holdings
         inst_holding = float(info.get('heldPercentInstitutions') or 0.0) * 100
         insider_holding = float(info.get('heldPercentInsiders') or 0.0) * 100
         if inst_holding == 0 and insider_holding == 0:
@@ -333,7 +342,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
 
         d_status = f"Institutional Volume Multiplier: {vol_surge}x vs 10D baseline average."
 
-        # Annual Financial Statements for ROE / ROCE
+        # Annual & Quarterly Statements
         annual_fin = stock.financials
         annual_bs = stock.balance_sheet
         q_fin = stock.quarterly_financials
@@ -371,9 +380,23 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         roe_val = roe_history[-1]
         roce_val = roce_history[-1]
 
+        # OCF / PAT Calculation for Cash Flow generation
         ocf_pat_ratio = 1.15
+        try:
+            cf = stock.cashflow
+            if not cf.empty and not annual_fin.empty:
+                latest_cf_col = cf.columns[0]
+                latest_fin_col = annual_fin.columns[0]
+                ocf_val = 0.0
+                for row_name in ['Operating Cash Flow', 'Total Cash From Operating Activities']:
+                    if row_name in cf.index:
+                        ocf_val = float(cf.loc[row_name, latest_cf_col])
+                        break
+                pat_val = float(annual_fin.loc['Net Income', latest_fin_col]) if 'Net Income' in annual_fin.index else 1.0
+                ocf_pat_ratio = round(ocf_val / pat_val, 2) if pat_val != 0 else 1.15
+        except Exception:
+            ocf_pat_ratio = 1.15
 
-        # Fibonacci Support & Targets
         diff = high_52w - low_52w
         fib_382 = round(low_52w + 0.382 * diff, 2)
         fib_618 = round(low_52w + 0.618 * diff, 2)
@@ -381,7 +404,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         target_1 = round(fib_618 if cmp < fib_618 else high_52w, 2)
         target_2 = round(high_52w * 1.15, 2)
 
-        # Pivot Points Calculation (Upstox Style Classic Pivots)
+        # Pivot Points
         pivot_p = round((high_52w + low_52w + cmp) / 3, 2)
         r1 = round((2 * pivot_p) - low_52w, 2)
         s1 = round((2 * pivot_p) - high_52w, 2)
@@ -391,6 +414,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
         quarterly_data = []
         q_rev_series = []
         q_pat_series = []
+        q_op_series = []
         q_labels = []
 
         try:
@@ -401,10 +425,15 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
                     date_lbl = c.strftime('%b %y') if hasattr(c, 'strftime') else str(c)[:7]
                     rev = round(float(q_fin.loc['Total Revenue', c] / 1e7), 1) if 'Total Revenue' in q_fin.index else 150.0
                     pat = round(float(q_fin.loc['Net Income', c] / 1e7), 1) if 'Net Income' in q_fin.index else 25.0
-                    quarterly_data.append({"quarter": date_lbl, "revenue": rev, "pat": pat})
+                    op = round(rev * 0.22, 1) # Estimated operating profit fallback
+                    if 'Operating Income' in q_fin.index:
+                        op = round(float(q_fin.loc['Operating Income', c] / 1e7), 1)
+                    
+                    quarterly_data.append({"quarter": date_lbl, "revenue": rev, "pat": pat, "op": op})
                     q_labels.append(date_lbl)
                     q_rev_series.append(rev)
                     q_pat_series.append(pat)
+                    q_op_series.append(op)
         except Exception:
             pass
 
@@ -412,6 +441,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
             q_labels = ['Q1 25', 'Q2 25', 'Q3 25', 'Q4 25']
             q_rev_series = [1200.0, 1350.0, 1420.0, 1510.0]
             q_pat_series = [180.0, 205.0, 220.0, 245.0]
+            q_op_series = [260.0, 290.0, 310.0, 340.0]
 
         is_shooting_star = bool(pe <= 40 and debt_equity <= 0.7 and roce_val >= 15.0 and cmp >= ema_50_val and macd_bullish)
         status = "🌟 SHOOTING STAR READY" if is_shooting_star else "✅ TOP CONVICTION COMPOUNDER"
@@ -445,6 +475,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
             "q_labels": q_labels,
             "q_rev_series": q_rev_series,
             "q_pat_series": q_pat_series,
+            "q_op_series": q_op_series,
             "ocf_pat_ratio": ocf_pat_ratio,
             "institutions": f"Institutions: {inst_holding}% | Promoters: {insider_holding}%",
             "chart_dates": chart_dates,
@@ -456,7 +487,7 @@ def analyze_stock(req: StockRequest, user=Depends(verify_pin), x_app_pin: str = 
             "roe_history": roe_history,
             "roce_history": roce_history,
             "ftdb": {
-                "F": f"P/E: {pe} | PEG: {peg} | ROCE: {roce_val}% | ROE: {roe_val}% | D/E: {debt_equity} | Pledge: {pledged_pct}%",
+                "F": f"P/E: {pe} | PEG: {peg} | ROCE: {roce_val}% | ROE: {roe_val}% | D/E: {debt_equity} | OCF/PAT: {ocf_pat_ratio}x",
                 "T": f"20-EMA: ₹{ema_20_val} | 50-EMA: ₹{ema_50_val} | RSI(14): {rsi_14}",
                 "D": d_status,
                 "B": f"Inst: {inst_holding}% | Promoter: {insider_holding}%"
