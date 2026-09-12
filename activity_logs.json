@@ -26,5 +26,117 @@
     "name": "Rana Sahib (Admin)",
     "action": "SEARCH_TICKER",
     "details": "TCS.BO"
+  },
+  {
+    "timestamp": "2026-09-12 18:52:45",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "SANDHAR.NS"
+  },
+  {
+    "timestamp": "2026-09-12 18:52:46",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "SANDHAR"
+  },
+  {
+    "timestamp": "2026-09-12 19:22:51",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "VINCOFE.NS"
+  },
+  {
+    "timestamp": "2026-09-12 19:22:52",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "VINCOFE"
+  },
+  {
+    "timestamp": "2026-09-12 19:23:49",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "TCS.NS"
+  },
+  {
+    "timestamp": "2026-09-12 19:23:50",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "TCS"
+  },
+  {
+    "timestamp": "2026-09-12 19:24:42",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "SANDHAR.NS"
+  },
+  {
+    "timestamp": "2026-09-12 19:24:43",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "SANDHAR"
+  },
+  {
+    "timestamp": "2026-09-12 19:25:35",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "GANDHAR.NS"
+  },
+  {
+    "timestamp": "2026-09-12 19:25:36",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "GANDHAR"
+  },
+  {
+    "timestamp": "2026-09-12 19:39:02",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "PTCIL.NS"
+  },
+  {
+    "timestamp": "2026-09-12 19:39:02",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "PTCIL"
+  },
+  {
+    "timestamp": "2026-09-12 19:39:16",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "NRL.NS"
+  },
+  {
+    "timestamp": "2026-09-12 19:39:17",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "NRL"
+  },
+  {
+    "timestamp": "2026-09-12 20:48:05",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "TATATECH.NS"
+  },
+  {
+    "timestamp": "2026-09-12 20:48:06",
+    "pin": "942040",
+    "name": "Rana Sahib (Admin)",
+    "action": "SEARCH_TICKER",
+    "details": "TATATECH"
   }
 ]

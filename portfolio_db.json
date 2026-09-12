@@ -1,0 +1,24 @@
+[
+  {
+    "ticker": "GANDHAR",
+    "name": "GANDHAR OIL REFINE IND L",
+    "sector": "Energy",
+    "cmp": 272.7,
+    "badge_code": "COMPOUNDER",
+    "roce": "13.36%",
+    "ocf_pat_ratio": 0.94,
+    "support": 157.63,
+    "resistance": 344.06
+  },
+  {
+    "ticker": "NRL",
+    "name": "NUPUR RECYCLERS LIMITED",
+    "sector": "Industrials",
+    "cmp": 133.06,
+    "badge_code": "COMPOUNDER",
+    "roce": "13.88%",
+    "ocf_pat_ratio": 1.29,
+    "support": 72.78,
+    "resistance": 165.68
+  }
+]

@@ -1,344 +1,508 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="en" data-theme="royal">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AntFinServ Positional Radar</title>
+  <title>AntFinServ Positional Radar & Quant Portfolio Terminal</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
-          }
-        }
-      }
-    }
-  </script>
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <style>
-    @keyframes marquee {
-      0% { transform: translateX(0%); }
-      100% { transform: translateX(-50%); }
+    @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
+    .animate-marquee { display: inline-flex; white-space: nowrap; animation: marquee 16s linear infinite; }
+    .animate-marquee:hover { animation-play-state: paused; }
+    html { scroll-behavior: smooth; }
+
+    /* MULTI-THEME DYNAMIC COLOR PALETTES */
+    :root[data-theme="royal"] {
+      --bg-body: #f4f6fb;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --header-bg: #ffffff;
+      --ticker-bg: linear-gradient(90deg, #0b132b 0%, #1c2541 50%, #0b132b 100%);
     }
-    .animate-marquee {
-      display: inline-flex;
-      white-space: nowrap;
-      animation: marquee 13s linear infinite;
+
+    :root[data-theme="minimal"] {
+      --bg-body: #fafafa;
+      --card-bg: #ffffff;
+      --card-border: #e5e5e5;
+      --text-main: #171717;
+      --text-muted: #737373;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --header-bg: #ffffff;
+      --ticker-bg: linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%);
     }
-    .animate-marquee:hover {
-      animation-play-state: paused;
+
+    :root[data-theme="onyx"] {
+      --bg-body: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #30363d;
+      --text-main: #f0f6fc;
+      --text-muted: #8b949e;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --header-bg: #161b22;
+      --ticker-bg: linear-gradient(90deg, #010409 0%, #0d1117 50%, #010409 100%);
     }
-    @media print {
-      body * { visibility: hidden; }
-      #printableReport, #printableReport * { visibility: visible; }
-      #printableReport { position: absolute; left: 0; top: 0; width: 100%; display: block !important; background: white; color: black; padding: 20px; }
+
+    body {
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
     }
+
+    .theme-card {
+      background-color: var(--card-bg);
+      border-color: var(--card-border);
+    }
+
+    .dhan-ticker-container {
+      background: var(--ticker-bg);
+      box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.15);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* SLIDE-OVER DRAWER */
+    #tvSlideOver {
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .slide-over-open {
+      transform: translateX(0%) !important;
+    }
+
+    /* HIGH VISIBILITY WHITE SPINNER */
+    .white-spinner {
+      border: 2.5px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 min-h-screen transition-colors duration-150 antialiased font-sans flex flex-col justify-between">
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden antialiased">
   
   <div>
-    <!-- LIVE TICKER (3X SPEED) -->
-    <div class="bg-slate-950 text-slate-200 border-b border-slate-800 text-[11px] font-mono py-2 overflow-hidden whitespace-nowrap shadow-inner flex items-center">
-      <div class="px-2.5 bg-blue-600 text-white font-black text-[10px] uppercase tracking-wider py-0.5 rounded ml-3 z-10 flex items-center gap-1.5 shadow">
-        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"></span> RADAR
+    <!-- LIVE 1.5X GLOW TICKER -->
+    <div class="dhan-ticker-container text-white text-sm font-mono py-2.5 overflow-hidden whitespace-nowrap flex items-center relative z-20">
+      <div class="px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs uppercase tracking-wider rounded-lg ml-4 z-10 flex items-center gap-2 shadow border border-blue-400/40">
+        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> RADAR LIVE
       </div>
-      <div class="overflow-hidden flex-1 relative ml-3">
-        <div id="tickerTrack" class="animate-marquee flex items-center space-x-6">
-          <span class="text-slate-400 font-bold">Syncing Market Leaders...</span>
+      <div class="overflow-hidden flex-1 relative ml-4">
+        <div id="tickerTrack" class="animate-marquee flex items-center space-x-8">
+          <span class="text-slate-400 font-bold text-sm">Streaming Market Feed...</span>
         </div>
       </div>
     </div>
 
-    <!-- GATEKEEPER / LOGIN HERO -->
+    <!-- GATEKEEPER SCREEN -->
     <div id="gatekeeperScreen" class="min-h-[calc(100vh-100px)] flex items-center justify-center px-4 py-8">
-      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center">
-        <div id="lockView">
-          <div class="w-16 h-16 rounded-2xl bg-blue-600/10 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center text-3xl font-black mb-4 border border-blue-500/20">
-            🏛️
-          </div>
-          <h2 class="text-2xl font-black text-slate-950 dark:text-white tracking-tight">AntFinServ Wealth Desk</h2>
-          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-bold text-blue-700 dark:text-blue-400 mt-2 mb-4 border border-slate-200 dark:border-slate-700">
-            Institutional Research Portal
-          </div>
-          <p class="text-xs font-bold text-slate-500 mb-6 leading-relaxed">
-            Quantitative Radar & Positional Compounding Terminal
-          </p>
-          
-          <input id="pinInput" type="password" maxlength="6" placeholder="• • • •" 
-                 class="w-full text-center tracking-[0.6em] text-3xl font-black font-mono py-3 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 mb-3 shadow-inner">
-          
-          <div id="pinError" class="text-xs font-bold text-rose-600 mb-3 hidden p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 text-left"></div>
-
-          <button onclick="submitPin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 rounded-2xl text-sm shadow-md transition">
-            SECURE CLIENT UNLOCK
-          </button>
+      <div class="theme-card border rounded-3xl p-8 max-w-md w-full shadow-xl text-center">
+        <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 mx-auto flex items-center justify-center text-2xl font-black mb-4 border border-blue-200">🏛️</div>
+        <h2 class="text-2xl font-black tracking-tight">AntFinServ Wealth Desk</h2>
+        <div class="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-[11px] font-mono font-bold text-blue-700 mt-2 mb-4 border border-slate-200">
+          Institutional Top 750 Quant Terminal
         </div>
+        <input id="pinInput" type="password" maxlength="6" placeholder="• • • •" 
+               class="w-full text-center tracking-[0.6em] text-3xl font-black font-mono py-3 rounded-2xl border-2 border-slate-300 bg-slate-50 focus:outline-none focus:border-blue-600 mb-3 shadow-inner">
+        <button onclick="submitPin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 rounded-2xl text-sm shadow-md transition">
+          SECURE DESK UNLOCK
+        </button>
       </div>
     </div>
 
-    <!-- AUTHENTICATED APP -->
+    <!-- AUTHENTICATED TERMINAL -->
     <div id="authenticatedApp" class="hidden w-[95%] max-w-[1440px] mx-auto py-5">
-      <header class="flex justify-between items-center pb-4 mb-5 border-b border-slate-300 dark:border-slate-800">
+      <!-- MFBOX STYLE HEADER -->
+      <header class="theme-card border rounded-2xl px-6 py-4 mb-5 shadow-sm flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
           <div class="flex items-center gap-2.5">
-            <div class="h-3 w-3 rounded-full bg-blue-600"></div>
-            <h1 class="text-2xl font-black tracking-tight text-slate-950 dark:text-white">ANTFINSERV POSITIONAL RADAR</h1>
+            <div class="h-3.5 w-3.5 rounded-full bg-blue-600"></div>
+            <h1 class="text-2xl font-black tracking-tight">ANTFINSERV WEALTH RADAR</h1>
           </div>
-          <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5 pl-5.5">
-            Institutional FTDB Framework (2–3 Quarters Compounding Engine)
+          <p class="text-xs font-bold text-slate-500 mt-0.5 pl-6">
+            Institutional Top 750 NSE Screening Engine & Multi-Asset Model Desk
           </p>
         </div>
 
-        <div class="flex items-center gap-2.5">
-          <button id="adminPdfBtn" onclick="generateBrandedPdf()" class="hidden px-3 py-1.5 rounded-lg text-xs font-black border border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 shadow-sm transition">
-            📄 Generate Report
-          </button>
-          <button onclick="lockTerminal()" class="px-3 py-1.5 rounded-lg text-xs font-black border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200">
-            🔒 Lock Desk
-          </button>
-          <button onclick="toggleTheme()" class="px-3.5 py-1.5 rounded-lg text-xs font-black border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-sm">
-            <span id="themeIcon">🌙</span> <span id="themeText">Dark</span>
+        <div class="flex items-center gap-3">
+          <!-- MAIN TABS -->
+          <div class="bg-slate-100 p-1 rounded-xl flex gap-1 font-mono text-xs font-black border border-slate-200">
+            <button onclick="switchMainTab('screener')" id="navTabScreener" class="px-4 py-2 rounded-lg bg-blue-600 text-white shadow-sm transition">
+              🔍 STOCK RADAR & SCREENER
+            </button>
+            <button onclick="switchMainTab('portfolio')" id="navTabPortfolio" class="px-4 py-2 rounded-lg text-slate-700 hover:text-blue-600 transition">
+              💼 QUANT PORTFOLIO BASKET
+            </button>
+          </div>
+
+          <!-- THEME SELECTOR DROPDOWN (MFBOX STYLE) -->
+          <div class="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200">
+            <span class="text-[11px] font-black uppercase text-slate-500">🎨</span>
+            <select id="themeSelector" onchange="changeTheme(this.value)" class="bg-transparent text-xs font-black text-slate-700 focus:outline-none cursor-pointer">
+              <option value="royal">Executive Royal (MFBox)</option>
+              <option value="minimal">Nordic Minimal White</option>
+              <option value="onyx">Onyx Dark Terminal</option>
+            </select>
+          </div>
+
+          <button onclick="lockTerminal()" class="px-3.5 py-2 rounded-xl text-xs font-black border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 shadow-sm transition">
+            🔒 Lock
           </button>
         </div>
       </header>
 
-      <!-- SEARCH BAR -->
-      <div class="max-w-2xl mb-4 relative">
-        <div class="flex gap-2">
-          <div class="relative flex-1">
-            <input id="tickerInput" type="text" autocomplete="off"
-                   placeholder="ENTER COMPANY NAME OR SYMBOL (E.G. CGCL, TCS, ALLDIGI)" 
-                   class="w-full bg-white dark:bg-slate-900 text-slate-950 dark:text-white placeholder:text-slate-400 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-base font-black uppercase focus:outline-none focus:border-blue-600 shadow-sm">
-            
-            <div id="suggestBox" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden hidden">
-              <div id="suggestList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
+      <!-- ================= TAB 1: SCREENER & JANAM PATRI ================= -->
+      <div id="viewScreener" class="space-y-5">
+        
+        <!-- CRISP MFBOX-STYLE SCANNER DECK (NO BLACK PATCH) -->
+        <div class="theme-card border rounded-3xl p-6 shadow-sm">
+          <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 pb-4 mb-4 border-b border-slate-200">
+            <div>
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-mono font-black mb-1 border border-blue-200">
+                🚀 TOP 750 QUANT DISCOVERY
+              </div>
+              <h2 class="text-xl font-black tracking-tight">Institutional Super Stock Discovery</h2>
+              <p class="text-xs text-slate-500 font-bold mt-0.5">RSI 51–69 Safe Accumulation • D/E &le; 0.30 Sweet Spot • P/E &le; 38 • Stage-2 EMAs</p>
+            </div>
+
+            <!-- UNIVERSE SWITCHER DROPDOWN & BUTTON -->
+            <div class="flex items-center gap-2">
+              <select id="universeSelect" onchange="runAutoScan()" class="bg-slate-50 border border-slate-300 text-slate-800 text-xs font-black rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-blue-600 shadow-sm">
+                <option value="midcap_150">Nifty Midcap 150 (Rank 101–250)</option>
+                <option value="smallcap_250">Nifty Smallcap 250 (Rank 251–500)</option>
+                <option value="microcap_250">Nifty Microcap 250 (Rank 501–750)</option>
+                <option value="next_50">Nifty Next 50 (Rank 51–100)</option>
+                <option value="nifty_50">Nifty 50 (Rank 1–50 Bluechip)</option>
+              </select>
+
+              <!-- BUTTON WITH WHITE ON BLUE CONTRAST SPINNER -->
+              <button onclick="runAutoScan()" id="btnAutoScan" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow flex items-center gap-2 transition cursor-pointer">
+                <div id="scanSpinner" class="hidden white-spinner"></div>
+                <span>⚡ SCAN UNIVERSE</span>
+              </button>
             </div>
           </div>
 
-          <button onclick="runAnalysis()" id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-xl text-sm transition shadow-sm">
-            SCAN
-          </button>
+          <!-- TOP STOCKS CARDS -->
+          <div id="topCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="col-span-full text-center py-6 text-slate-400 font-mono text-xs">
+              Select universe and click "⚡ SCAN UNIVERSE" to load vetted Super Stocks.
+            </div>
+          </div>
+        </div>
+
+        <!-- SEARCH ANY STOCK -->
+        <div class="max-w-2xl relative">
+          <div class="flex gap-2">
+            <div class="relative flex-1">
+              <input id="tickerInput" type="text" autocomplete="off"
+                     placeholder="SEARCH ANY STOCK (E.G. GANDHAR, CGCL, TATATECH, VINCOFE, SEPC)" 
+                     class="w-full bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-xl px-4 py-2.5 text-base font-black uppercase focus:outline-none focus:border-blue-600 shadow-sm">
+              <div id="suggestBox" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-2xl shadow-2xl z-50 overflow-hidden hidden">
+                <div id="suggestList" class="divide-y divide-slate-100"></div>
+              </div>
+            </div>
+            <button onclick="runAnalysis()" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-xl text-sm transition shadow-sm">
+              SCAN
+            </button>
+          </div>
+        </div>
+
+        <!-- BHANGAR-CAP WARNING CARD -->
+        <div id="bhangarWarningCard" class="hidden bg-rose-50 border-2 border-rose-400 rounded-3xl p-5 text-rose-900 shadow-sm">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-2xl">🚩</span>
+            <div>
+              <h3 class="text-base font-black uppercase text-rose-700 tracking-wide">Bhangar-Cap / Institutional Liquidity Warning</h3>
+              <p class="text-xs text-rose-800 font-bold">Counter falls outside institutional Top 750 NSE parameters. High slippage & governance friction.</p>
+            </div>
+          </div>
+          <div id="bhangarPoints" class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-xs font-mono font-bold"></div>
+        </div>
+
+        <!-- JANAM PATRI DECK -->
+        <div id="output" class="hidden space-y-4">
+          <div id="mainCard" class="theme-card border rounded-2xl p-5 shadow-sm">
+            <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
+              <div class="space-y-2">
+                <div class="flex items-center gap-3 flex-wrap">
+                  <h2 id="stockName" class="text-2xl md:text-3xl font-black text-slate-900 tracking-tight"></h2>
+                  <span id="stockTicker" class="text-xs font-black font-mono px-2.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-300"></span>
+                  <span id="stockBadge" class="text-xs font-black px-3.5 py-1.5 rounded-full shadow-sm"></span>
+                  <button onclick="openTradingViewStudio(currentStockData.ticker)" class="text-xs font-black px-3.5 py-1.5 rounded-full bg-blue-50 text-blue-600 border border-blue-300 hover:bg-blue-100 transition flex items-center gap-1.5">
+                    📈 <span>Open TV Studio</span>
+                  </button>
+                </div>
+                <div class="flex items-center gap-4 text-xs font-bold text-slate-500">
+                  <span id="stockSector" class="bg-slate-100 px-2.5 py-0.5 rounded text-blue-600 font-mono"></span>
+                  <span id="instHolding"></span>
+                  <span id="dualSlBadge" class="text-rose-600 font-mono font-bold"></span>
+                </div>
+              </div>
+              <div class="flex items-baseline md:flex-col md:items-end justify-between gap-1">
+                <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Current Market Price</span>
+                <div id="cmpPrice" class="text-3xl md:text-4xl font-black font-mono text-slate-900"></div>
+                <button onclick="addCurrentStockToPortfolio()" id="btnAddToBasket" class="mt-2 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition flex items-center gap-1">
+                  ➕ Add to Quant Portfolio
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Positional Matrix & Forensics -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="theme-card border rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+              <div class="text-[10px] font-extrabold text-slate-400 uppercase">Cash Flow Conversion</div>
+              <div id="ocfMetric" class="text-3xl font-black font-mono text-blue-600">--</div>
+              <div class="text-[10px] font-bold text-slate-500">Benchmark: &ge; 0.75x OCF/PAT</div>
+            </div>
+
+            <div class="md:col-span-3 theme-card border rounded-2xl p-4 shadow-sm">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs font-black uppercase tracking-wider">Dual Stop-Loss & Pivots</h3>
+                <span class="text-[10px] font-mono font-bold text-slate-400">Structural Defense Engine</span>
+              </div>
+              <div class="grid grid-cols-4 gap-2 text-center font-mono">
+                <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                  <div class="text-[9px] text-slate-400 font-bold">Pivot S1</div>
+                  <div id="pivotS1" class="text-xs font-black text-emerald-600">--</div>
+                </div>
+                <div class="bg-blue-50 p-2 rounded-xl border border-blue-200">
+                  <div class="text-[9px] text-blue-500 font-bold">PIVOT</div>
+                  <div id="pivotMid" class="text-xs font-black text-blue-600">--</div>
+                </div>
+                <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                  <div class="text-[9px] text-slate-400 font-bold">Tier-1 Close SL</div>
+                  <div id="tier1Sl" class="text-xs font-black text-rose-500">--</div>
+                </div>
+                <div class="bg-rose-50 p-2 rounded-xl border border-rose-200">
+                  <div class="text-[9px] text-rose-600 font-bold">Tier-2 Hard SL (-9%)</div>
+                  <div id="tier2Sl" class="text-xs font-black text-rose-600">--</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FTDB MATRIX -->
+          <div class="theme-card border rounded-2xl p-4 shadow-sm">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <div class="text-blue-600 font-black text-xs uppercase mb-1">F - Fundamentals</div>
+                <p id="ftdbF" class="text-xs font-bold"></p>
+              </div>
+              <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <div class="text-blue-600 font-black text-xs uppercase mb-1">T - Technical Trend</div>
+                <p id="ftdbT" class="text-xs font-bold"></p>
+              </div>
+              <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <div class="text-blue-600 font-black text-xs uppercase mb-1">D - Liquidity & Flow</div>
+                <p id="ftdbD" class="text-xs font-bold"></p>
+              </div>
+              <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <div class="text-blue-600 font-black text-xs uppercase mb-1">B - Big Money Footprint</div>
+                <p id="ftdbB" class="text-xs font-bold"></p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- DASHBOARD OUTPUT -->
-      <div id="output" class="hidden space-y-4">
-        <div id="mainCard" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition">
-          <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
-            <div class="space-y-1.5">
-              <div class="flex items-center gap-3 flex-wrap">
-                <h2 id="stockName" class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight"></h2>
-                <span id="stockTicker" class="text-xs font-black font-mono px-2.5 py-0.5 rounded bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-blue-300 border border-slate-300 dark:border-slate-700"></span>
-                <span id="stockStatus" class="text-xs font-black px-3 py-1 rounded-full"></span>
-              </div>
-              <div id="instHolding" class="text-xs font-bold text-slate-500 dark:text-slate-400"></div>
-            </div>
-            <div class="flex items-baseline md:flex-col md:items-end justify-between gap-1">
-              <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Current Market Price</span>
-              <div id="cmpPrice" class="text-3xl md:text-4xl font-black font-mono text-slate-950 dark:text-blue-400"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- UPSTOX STYLE TECHNICAL SUMMARY GAUGE & PIVOTS -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Technical Summary</h3>
-              <span id="techSummaryBadge" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">Neutral</span>
-            </div>
-            <div class="space-y-2">
-              <div class="flex justify-between text-[11px] font-bold text-slate-500">
-                <span>Bearish</span>
-                <span>Neutral</span>
-                <span>Bullish</span>
-              </div>
-              <div class="h-3 w-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-500 rounded-full relative p-0.5 shadow-inner">
-                <div id="gaugeIndicator" class="h-2 w-2 rounded-full bg-white border-2 border-slate-900 absolute top-0.5 transition-all duration-500 shadow" style="left: 50%;"></div>
-              </div>
-            </div>
-            <div id="techSummaryDesc" class="text-[11px] font-bold text-slate-600 dark:text-slate-400 mt-2">
-              Oscillators and moving averages indicating balanced momentum.
-            </div>
-          </div>
-
-          <div class="md:col-span-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Classic Pivot Levels (Upstox Style)</h3>
-              <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded">Support & Resistance Grid</span>
-            </div>
-            <div class="grid grid-cols-5 gap-2 text-center font-mono">
-              <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-                <div class="text-[9px] text-slate-400 font-bold">S2</div>
-                <div id="pivotS2" class="text-xs md:text-sm font-black text-emerald-600">--</div>
-              </div>
-              <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-                <div class="text-[9px] text-slate-400 font-bold">S1</div>
-                <div id="pivotS1" class="text-xs md:text-sm font-black text-emerald-500">--</div>
-              </div>
-              <div class="bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-xl border border-blue-200 dark:border-blue-900">
-                <div class="text-[9px] text-blue-500 font-bold">PIVOT</div>
-                <div id="pivotMid" class="text-xs md:text-sm font-black text-blue-600 dark:text-blue-400">--</div>
-              </div>
-              <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-                <div class="text-[9px] text-slate-400 font-bold">R1</div>
-                <div id="pivotR1" class="text-xs md:text-sm font-black text-rose-500">--</div>
-              </div>
-              <div class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-                <div class="text-[9px] text-slate-400 font-bold">R2</div>
-                <div id="pivotR2" class="text-xs md:text-sm font-black text-rose-600">--</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- CHARTS WITH UPSTOX STYLE INTERACTIVE FINANCIAL TABS -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <!-- Segmented Financial Statement Card -->
-          <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+      <!-- ================= TAB 2: QUANT PORTFOLIO BASKET ================= -->
+      <div id="viewPortfolio" class="hidden space-y-5">
+        <div class="theme-card border rounded-3xl p-6 shadow-sm">
+          <div class="flex flex-col md:flex-row justify-between md:items-center pb-5 mb-5 border-b border-slate-200 gap-4">
             <div>
-              <div class="flex items-center justify-between mb-2">
-                <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">Financial Statement</h3>
-                <span class="text-[10px] font-mono font-bold text-slate-400">₹ Cr (Quarterly)</span>
+              <h2 class="text-xl font-black tracking-tight">Institutional Multi-Asset Allocation Engine</h2>
+              <p class="text-xs font-bold text-slate-500">60% Equity | 15% Gold | 15% Arbitrage/Debt | 10% Tactical Cash</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-300">
+                <span class="text-xs font-black uppercase text-slate-500 pl-2">Capital:</span>
+                <div class="relative">
+                  <span class="absolute left-3 top-2 text-sm font-black text-blue-600">₹</span>
+                  <input id="portfolioCapitalInput" type="number" value="500000" step="50000" onchange="renderPortfolioModel()" 
+                         class="w-36 pl-7 pr-2 py-1.5 rounded-xl border border-slate-300 bg-white text-sm font-black font-mono focus:outline-none focus:border-blue-600">
+                </div>
               </div>
-              <!-- Upstox Style Segmented Tabs -->
-              <div class="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl mb-3 border border-slate-200 dark:border-slate-800">
-                <button onclick="switchFinancialTab('revenue')" id="tabRev" class="flex-1 py-1 text-[11px] font-black rounded-lg bg-blue-600 text-white shadow-sm transition">Revenue</button>
-                <button onclick="switchFinancialTab('op')" id="tabOp" class="flex-1 py-1 text-[11px] font-black rounded-lg text-slate-600 dark:text-slate-400 transition">Operating</button>
-                <button onclick="switchFinancialTab('pat')" id="tabPat" class="flex-1 py-1 text-[11px] font-black rounded-lg text-slate-600 dark:text-slate-400 transition">Net Profit</button>
+              <button onclick="saveAndGeneratePortfolioRun()" class="px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-black hover:bg-blue-700 transition shadow-sm">
+                💾 Lock & Save Run
+              </button>
+              <button onclick="downloadTrackingCsv()" class="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 transition shadow-sm">
+                📥 Export CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- RISK BUDGET BANNER -->
+          <div id="riskTierBanner" class="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold mb-4 flex justify-between items-center">
+            <span>🛡️ Active Risk Budget: <strong id="riskPctLabel">1.5% 1R per trade</strong> (₹7,500 maximum risk)</span>
+            <span class="font-mono text-[11px] text-slate-500">Min Capital Floor: ₹5,00,000</span>
+          </div>
+
+          <!-- SCHEME INPUTS -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-blue-50/70 p-4 rounded-2xl border border-blue-200">
+              <div class="text-[10px] font-black uppercase tracking-wider text-blue-700">Core Equities (60%)</div>
+              <div id="allocEquityAmt" class="text-xl font-black font-mono text-slate-900 mt-1">₹3,00,000</div>
+              <div class="text-[10px] font-bold text-slate-500 mt-1">8–10 Stocks (Max 8% Single Cap)</div>
+            </div>
+
+            <div class="bg-amber-50/70 p-4 rounded-2xl border border-amber-200">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-black uppercase tracking-wider text-amber-700">Gold Sovereign (15%)</span>
+                <span id="allocGoldAmt" class="text-xs font-black font-mono text-slate-900">₹75,000</span>
               </div>
+              <input id="goldSchemeInput" type="text" value="Nippon India ETF Gold BeES" placeholder="Preferred Gold ETF/FoF" 
+                     class="mt-2 w-full px-2.5 py-1.5 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-800">
             </div>
-            <div class="h-44"><canvas id="financialChart"></canvas></div>
+
+            <div class="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-black uppercase tracking-wider text-indigo-700">Arbitrage / Debt (15%)</span>
+                <span id="allocArbAmt" class="text-xs font-black font-mono text-slate-900">₹75,000</span>
+              </div>
+              <input id="arbSchemeInput" type="text" value="Kotak Arbitrage Fund" placeholder="Preferred Arbitrage Fund" 
+                     class="mt-2 w-full px-2.5 py-1.5 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800">
+            </div>
+
+            <div class="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-black uppercase tracking-wider text-emerald-700">Tactical Dry Powder (10%)</span>
+                <span id="allocCashAmt" class="text-xs font-black font-mono text-slate-900">₹50,000</span>
+              </div>
+              <input id="liquidSchemeInput" type="text" value="HDFC Liquid Fund" placeholder="Preferred Liquid Fund" 
+                     class="mt-2 w-full px-2.5 py-1.5 rounded-xl border border-emerald-300 bg-white text-xs font-bold text-slate-800">
+            </div>
           </div>
 
-          <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">ROE vs ROCE Trend</h3>
-              <span class="text-[10px] font-mono font-bold text-slate-400">% Compounding</span>
-            </div>
-            <div class="h-52"><canvas id="roeRoceChart"></canvas></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left font-mono text-xs">
+              <thead class="bg-slate-100 text-slate-500 font-extrabold uppercase">
+                <tr>
+                  <th class="p-3">Counter</th>
+                  <th class="p-3">Sector</th>
+                  <th class="p-3">Weight</th>
+                  <th class="p-3">Amount</th>
+                  <th class="p-3">CMP</th>
+                  <th class="p-3">Quantity</th>
+                  <th class="p-3">Entry Zone</th>
+                  <th class="p-3">Stop Loss</th>
+                  <th class="p-3">Target</th>
+                  <th class="p-3">Alert Trigger</th>
+                  <th class="p-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="portfolioTableBody" class="divide-y divide-slate-200 font-bold">
+              </tbody>
+            </table>
           </div>
 
-          <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">MACD & RSI(14)</h3>
-              <span class="text-[10px] font-mono font-bold text-slate-400">Synced Oscillators</span>
-            </div>
-            <div class="h-52"><canvas id="momentumChart"></canvas></div>
-          </div>
-        </div>
-
-        <!-- FTDB MATRIX -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
-              <div class="text-blue-600 font-black text-xs uppercase mb-1">F - Fundamentals</div>
-              <p id="ftdbF" class="text-slate-900 dark:text-slate-100 text-xs font-bold"></p>
-            </div>
-            <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
-              <div class="text-blue-600 font-black text-xs uppercase mb-1">T - Technical Trend</div>
-              <p id="ftdbT" class="text-slate-900 dark:text-slate-100 text-xs font-bold"></p>
-            </div>
-            <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
-              <div class="text-blue-600 font-black text-xs uppercase mb-1">D - Derivatives & Flow</div>
-              <p id="ftdbD" class="text-slate-900 dark:text-slate-100 text-xs font-bold"></p>
-            </div>
-            <div class="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
-              <div class="text-blue-600 font-black text-xs uppercase mb-1">B - Big Money Footprint</div>
-              <p id="ftdbB" class="text-slate-900 dark:text-slate-100 text-xs font-bold"></p>
-            </div>
+          <div id="emptyPortfolioMsg" class="text-center py-12 text-slate-400 font-bold text-sm hidden">
+            No stocks in basket. Auto-scan a universe on Tab 1 and click "+ Basket" to construct portfolio.
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- MANDATORY REGULATORY FOOTER DISCLAIMER -->
-  <footer class="w-full bg-slate-200 dark:bg-slate-950 border-t border-slate-300 dark:border-slate-800 py-4 px-6 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-10">
-    Portal only for education & research purpose, we are not SEBI registered & do not offer any Buy/Sell recommendation of any stocks researched by the users.
-  </footer>
+  <!-- ================= SLIDE-OVER TRADINGVIEW STUDIO DRAWER ================= -->
+  <div id="tvSlideOver" class="fixed top-0 right-0 w-full md:w-[70%] lg:w-[60%] h-full bg-slate-950 border-l border-slate-800 shadow-2xl z-50 transform translate-x-full flex flex-col justify-between">
+    <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <span class="text-lg font-black text-white" id="tvStudioSymbol">NSE:STOCK</span>
+        
+        <!-- EXTERNAL TAB FALLBACK BUTTON -->
+        <a id="btnTvExternal" href="#" target="_blank" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-blue-400 border border-slate-700 text-xs font-mono font-bold flex items-center gap-1 transition">
+          ↗ <span>Open in TV Web</span>
+        </a>
 
-  <!-- PRINTABLE REPORT TEMPLATE -->
-  <div id="printableReport" class="hidden">
-    <h1 class="text-2xl font-black text-blue-900">ANTFINSERV WEALTH RESEARCH</h1>
-    <p class="text-xs font-bold text-slate-600">Institutional Positional Intelligence</p>
-    <hr class="my-3">
-    <h2 id="rptStockName" class="text-xl font-black"></h2>
-    <div id="rptCmp" class="text-lg font-mono font-bold"></div>
-    <div id="rptStatus" class="my-2 font-bold"></div>
-    <p id="rptReason" class="text-xs"></p>
+        <div class="flex bg-slate-900 p-1 rounded-lg text-xs font-mono font-bold text-slate-300">
+          <button onclick="setTvInterval('W')" id="btnTvW" class="px-2.5 py-1 rounded bg-blue-600 text-white">1W (Weekly)</button>
+          <button onclick="setTvInterval('D')" id="btnTvD" class="px-2.5 py-1 rounded text-slate-400 hover:text-white">1D (Daily)</button>
+        </div>
+      </div>
+      <button onclick="closeTradingViewStudio()" class="p-2 text-slate-400 hover:text-white font-black text-base">✕ Close</button>
+    </div>
+
+    <!-- WIDGET CANVAS -->
+    <div class="flex-1 w-full bg-slate-950 relative" id="tvWidgetFrame">
+      <div id="tradingview_embed_target" class="w-full h-full"></div>
+    </div>
+
+    <div class="p-3 border-t border-slate-800 bg-slate-900/80 flex justify-between items-center text-xs font-mono text-slate-400">
+      <span>Overlays: EMA 20 (Green), EMA 50 (Blue), EMA 63 (Orange), EMA 200 (Red) | RSI (14) Pane</span>
+    </div>
   </div>
 
+  <footer class="w-full bg-slate-100 border-t border-slate-200 py-3 px-6 text-center text-[11px] font-bold text-slate-500 mt-10">
+    Portal only for education &amp; research purpose, we are not SEBI registered &amp; do not offer any Buy/Sell recommendation of any stocks researched by the users.
+  </footer>
+
   <script>
-    let financialChartInstance = null;
-    let roeRoceChartInstance = null;
-    let momentumChartInstance = null;
     let currentAuth = null;
     let currentStockData = null;
-    let activeFinancialMetric = 'revenue';
+    let rawPortfolioData = null;
+    let currentTvTicker = "DIXON";
+    let currentTvInterval = "W";
 
     window.addEventListener('DOMContentLoaded', () => {
       loadLiveTicker();
-      setInterval(loadLiveTicker, 240000);
+      setInterval(loadLiveTicker, 300000);
+      const savedTheme = localStorage.getItem('antfinserv_theme') || 'royal';
+      changeTheme(savedTheme);
+      document.getElementById('themeSelector').value = savedTheme;
+
       const savedAuth = localStorage.getItem('antfinserv_auth');
       if (savedAuth) {
         currentAuth = JSON.parse(savedAuth);
         unlockUI(currentAuth);
       } else {
-        showGatekeeper();
+        document.getElementById('gatekeeperScreen').classList.remove('hidden');
       }
     });
 
-    function showGatekeeper() {
-      document.getElementById('gatekeeperScreen').classList.remove('hidden');
-      document.getElementById('authenticatedApp').classList.add('hidden');
+    function changeTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('antfinserv_theme', theme);
     }
 
     function unlockUI(auth) {
       document.getElementById('gatekeeperScreen').classList.add('hidden');
       document.getElementById('authenticatedApp').classList.remove('hidden');
-      if (auth.role === 'admin') {
-        document.getElementById('adminPdfBtn').classList.remove('hidden');
-      }
+      loadPortfolioData();
+      runAutoScan();
     }
 
     function lockTerminal() {
       localStorage.removeItem('antfinserv_auth');
-      currentAuth = null;
-      showGatekeeper();
+      location.reload();
     }
 
     async function submitPin() {
       const pin = document.getElementById('pinInput').value.trim();
-      const errBox = document.getElementById('pinError');
-      try {
-        const res = await fetch('/api/verify-pin', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ pin: pin })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          errBox.innerText = "Invalid Access PIN.";
-          errBox.classList.remove('hidden');
-          return;
-        }
-        currentAuth = { pin: pin, role: data.role, name: data.name };
-        localStorage.setItem('antfinserv_auth', JSON.stringify(currentAuth));
-        unlockUI(currentAuth);
-      } catch (err) {
-        errBox.innerText = "Connection error.";
-        errBox.classList.remove('hidden');
-      }
+      const res = await fetch('/api/verify-pin', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ pin: pin })
+      });
+      const data = await res.json();
+      if (!res.ok) { alert('Invalid PIN'); return; }
+      currentAuth = { pin: pin, role: data.role, name: data.name };
+      localStorage.setItem('antfinserv_auth', JSON.stringify(currentAuth));
+      unlockUI(currentAuth);
     }
 
     async function loadLiveTicker() {
@@ -346,18 +510,190 @@
         const res = await fetch('/api/market-ticker');
         const data = await res.json();
         const track = document.getElementById('tickerTrack');
-        if (!data || !data.n50_gainers) return;
-
-        let itemsHtml = '';
-        ['n50_gainers', 'n50_losers', 'n500_gainers', 'n500_losers'].forEach(key => {
-          data[key].forEach(s => {
-            itemsHtml += `<span class="flex items-center gap-1 font-bold mx-3"><span class="text-blue-400 text-[9px] px-1 bg-blue-950 rounded">${key.includes('n50_') ? 'N50' : 'N500'}</span> <span class="text-slate-300">${s.symbol}</span> ₹${s.price} <span class="${s.chg >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${s.chg >= 0 ? '+' : ''}${s.chg}%</span></span>`;
+        let html = '';
+        ['n50_gainers', 'n50_losers', 'n500_gainers', 'n500_losers'].forEach(k => {
+          (data[k] || []).forEach(s => {
+            const isPos = s.chg >= 0;
+            html += `
+              <span class="inline-flex items-center gap-2 font-bold px-3 py-1 rounded-lg bg-slate-900/90 border border-slate-700/80 shadow mx-1">
+                <span class="text-[10px] px-1.5 py-0.5 rounded ${k.includes('n50_') ? 'bg-blue-900 text-blue-300' : 'bg-purple-900 text-purple-300'} font-black">${k.includes('n50_') ? 'N50' : 'N500'}</span>
+                <span class="text-slate-100 font-black tracking-wide">${s.symbol}</span>
+                <span class="text-white font-mono text-sm">₹${s.price}</span>
+                <span class="${isPos ? 'text-emerald-400' : 'text-rose-400'} font-mono text-xs font-black">${isPos ? '▲ +' : '▼ '}${s.chg}%</span>
+              </span>`;
           });
         });
-        track.innerHTML = itemsHtml + itemsHtml;
+        track.innerHTML = html + html;
       } catch (e) {}
     }
 
+    function switchMainTab(tab) {
+      const screenerView = document.getElementById('viewScreener');
+      const portfolioView = document.getElementById('viewPortfolio');
+      const btnScreener = document.getElementById('navTabScreener');
+      const btnPortfolio = document.getElementById('navTabPortfolio');
+
+      if (tab === 'screener') {
+        screenerView.classList.remove('hidden');
+        portfolioView.classList.add('hidden');
+        btnScreener.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white shadow-sm transition';
+        btnPortfolio.className = 'px-4 py-2 rounded-lg text-slate-700 hover:text-blue-600 transition';
+      } else {
+        screenerView.classList.add('hidden');
+        portfolioView.classList.remove('hidden');
+        btnPortfolio.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white shadow-sm transition';
+        btnScreener.className = 'px-4 py-2 rounded-lg text-slate-700 hover:text-blue-600 transition';
+        loadPortfolioData();
+      }
+    }
+
+    // --- AUTO-SCAN WITH WHITE SPINNER & LIGHT CARDS ---
+    async function runAutoScan() {
+      const u = document.getElementById('universeSelect').value;
+      const spinner = document.getElementById('scanSpinner');
+      spinner.classList.remove('hidden');
+      try {
+        const res = await fetch(`/api/screener/scan-universe?universe=${u}`, {
+          headers: {'X-App-Pin': currentAuth.pin}
+        });
+        const stocks = await res.json();
+        renderTopCards(stocks);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        spinner.classList.add('hidden');
+      }
+    }
+
+    function renderTopCards(stocks) {
+      const grid = document.getElementById('topCardsGrid');
+      if (!stocks || stocks.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400 font-mono text-xs">No setups currently qualify strict Stage-2, D/E &le; 0.30 &amp; RSI 51-69 filters in this cohort.</div>`;
+        return;
+      }
+
+      grid.innerHTML = stocks.map((s, idx) => `
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:border-blue-500 transition">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <h4 class="font-black text-slate-900 text-base tracking-tight">${s.name}</h4>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <span class="text-[10px] font-mono font-bold text-blue-600">${s.ticker}.NS</span>
+                  <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-bold">${s.sector}</span>
+                </div>
+              </div>
+              <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${s.badge_code === 'SHOOTING_STAR' ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-blue-100 text-blue-900 border border-blue-300'}">
+                ${s.badge_code === 'SHOOTING_STAR' ? '🌟 SUPER' : '⚡ PLAN B'}
+              </span>
+            </div>
+
+            <div class="flex justify-between items-baseline my-2.5">
+              <span class="text-xs text-slate-400 font-bold">CMP:</span>
+              <span class="text-lg font-black font-mono text-slate-900">₹${s.cmp}</span>
+            </div>
+
+            <!-- Mini Sparkline (6M Weekly) -->
+            <div class="h-16 w-full mb-3 bg-slate-50 p-1 rounded-xl border border-slate-200">
+              <canvas id="spark_${idx}"></canvas>
+            </div>
+
+            <!-- Parameters Grid -->
+            <div class="grid grid-cols-2 gap-1.5 text-[11px] font-mono text-slate-600 mb-3 bg-slate-50 p-2 rounded-xl border border-slate-100">
+              <div>P/E: <span class="font-black text-slate-900">${s.pe}</span></div>
+              <div>D/E: <span class="font-black text-emerald-600">${s.de}</span></div>
+              <div>ROCE: <span class="font-black text-emerald-600">${s.roce}</span></div>
+              <div>RSI: <span class="font-black text-blue-600">${s.rsi}</span></div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 pt-2 border-t border-slate-100">
+            <button onclick="openTradingViewStudio('${s.ticker}')" class="py-1.5 px-2.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 text-xs font-bold transition flex items-center gap-1">
+              📈 TV Studio
+            </button>
+            <button onclick="runAnalysis('${s.ticker}')" class="flex-1 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition">
+              Deep Scan
+            </button>
+            <button onclick="addStockObjectToPortfolio('${s.ticker}', '${s.name}', '${s.sector}', ${s.cmp}, '${s.badge_code}', '${s.roce}', ${s.ocf_pat}, ${s.support}, ${s.resistance})" class="py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition">
+              ➕ Basket
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      stocks.forEach((s, idx) => {
+        const ctx = document.getElementById(`spark_${idx}`);
+        if (!ctx) return;
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: s.sparkline.map((_, i) => i),
+            datasets: [{
+              data: s.sparkline,
+              borderColor: s.badge_code === 'SHOOTING_STAR' ? '#f59e0b' : '#2563eb',
+              borderWidth: 2,
+              pointRadius: 0,
+              fill: false,
+              tension: 0.2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: { x: { display: false }, y: { display: false } }
+          }
+        });
+      });
+    }
+
+    // --- TRADINGVIEW DRAWER & WEB LINK ---
+    function openTradingViewStudio(ticker) {
+      currentTvTicker = ticker.replace('.NS', '').replace('.BO', '');
+      document.getElementById('tvStudioSymbol').innerText = `NSE:${currentTvTicker}`;
+      document.getElementById('btnTvExternal').href = `https://in.tradingview.com/symbols/NSE-${currentTvTicker}/`;
+      document.getElementById('tvSlideOver').classList.add('slide-over-open');
+      renderTradingViewWidget();
+    }
+
+    function closeTradingViewStudio() {
+      document.getElementById('tvSlideOver').classList.remove('slide-over-open');
+    }
+
+    function setTvInterval(intv) {
+      currentTvInterval = intv;
+      if (intv === 'W') {
+        document.getElementById('btnTvW').className = 'px-2.5 py-1 rounded bg-blue-600 text-white';
+        document.getElementById('btnTvD').className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white';
+      } else {
+        document.getElementById('btnTvD').className = 'px-2.5 py-1 rounded bg-blue-600 text-white';
+        document.getElementById('btnTvW').className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white';
+      }
+      renderTradingViewWidget();
+    }
+
+    function renderTradingViewWidget() {
+      document.getElementById('tradingview_embed_target').innerHTML = '';
+      new TradingView.widget({
+        "autosize": true,
+        "symbol": `NSE:${currentTvTicker}`,
+        "interval": currentTvInterval,
+        "timezone": "Asia/Kolkata",
+        "theme": "dark",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#0f172a",
+        "enable_publishing": false,
+        "allow_symbol_change": true,
+        "container_id": "tradingview_embed_target",
+        "studies": [
+          "Moving Average Exponential@tv-basicstudies",
+          "RSI@tv-basicstudies"
+        ]
+      });
+    }
+
+    // Search
     document.getElementById('tickerInput').addEventListener('input', async (e) => {
       const q = e.target.value.trim();
       const box = document.getElementById('suggestBox');
@@ -370,11 +706,10 @@
         list.innerHTML = '';
         items.forEach(item => {
           const row = document.createElement('div');
-          row.className = 'px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer flex justify-between items-center text-xs font-bold';
+          row.className = 'px-4 py-2.5 hover:bg-slate-100 cursor-pointer flex justify-between items-center text-xs font-bold';
           row.innerHTML = `<span>${item.name}</span> <span class="font-mono text-blue-500">${item.display}</span>`;
           row.onclick = () => {
-            const cleanSym = item.symbol.replace('.NS', '').replace('.BO', '');
-            document.getElementById('tickerInput').value = cleanSym;
+            document.getElementById('tickerInput').value = item.display;
             box.classList.add('hidden');
             runAnalysis(item.symbol);
           };
@@ -384,171 +719,216 @@
       } catch (err) {}
     });
 
-    async function runAnalysis(manualTicker = null) {
-      const ticker = manualTicker || document.getElementById('tickerInput').value.trim();
+    async function runAnalysis(sym = null) {
+      const ticker = sym || document.getElementById('tickerInput').value.trim();
       if (!ticker) return;
+      document.getElementById('suggestBox').classList.add('hidden');
       try {
         const res = await fetch('/api/analyze', {
           method: 'POST',
           headers: {'Content-Type': 'application/json', 'X-App-Pin': currentAuth.pin},
           body: JSON.stringify({ ticker: ticker })
         });
-        if (!res.ok) { alert('Stock analysis failed.'); return; }
+        if (!res.ok) { alert('Stock analysis failed or counter not found.'); return; }
         const data = await res.json();
         renderData(data);
-      } catch (err) { alert('Server error.'); }
-    }
-
-    function switchFinancialTab(metric) {
-      activeFinancialMetric = metric;
-      ['Rev', 'Op', 'Pat'].forEach(m => {
-        const btn = document.getElementById('tab' + m);
-        btn.className = 'flex-1 py-1 text-[11px] font-black rounded-lg text-slate-600 dark:text-slate-400 transition';
-      });
-      document.getElementById('tab' + metric.charAt(0).toUpperCase() + metric.slice(1)).className = 'flex-1 py-1 text-[11px] font-black rounded-lg bg-blue-600 text-white shadow-sm transition';
-      if (currentStockData) renderFinancialChart(currentStockData);
-    }
-
-    function renderFinancialChart(data) {
-      const sharedOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { ticks: { font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } }
-      };
-
-      let seriesData = data.q_rev_series;
-      let barColor = 'rgba(37, 99, 235, 0.8)';
-      let labelName = 'Revenue (₹ Cr)';
-
-      if (activeFinancialMetric === 'op') {
-        seriesData = data.q_op_series;
-        barColor = 'rgba(245, 158, 11, 0.8)';
-        labelName = 'Operating Profit (₹ Cr)';
-      } else if (activeFinancialMetric === 'pat') {
-        seriesData = data.q_pat_series;
-        barColor = 'rgba(16, 185, 129, 0.8)';
-        labelName = 'Net Profit (₹ Cr)';
-      }
-
-      if (financialChartInstance) financialChartInstance.destroy();
-      financialChartInstance = new Chart(document.getElementById('financialChart'), {
-        type: 'bar',
-        data: {
-          labels: data.q_labels,
-          datasets: [{ label: labelName, data: seriesData, backgroundColor: barColor, borderRadius: 4 }]
-        },
-        options: sharedOptions
-      });
-    }
-
-    function renderCharts(data) {
-      const sharedOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: { legend: { labels: { font: { weight: 'bold', size: 9 } } } },
-        scales: { y: { ticks: { font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } }
-      };
-
-      renderFinancialChart(data);
-
-      if (roeRoceChartInstance) roeRoceChartInstance.destroy();
-      roeRoceChartInstance = new Chart(document.getElementById('roeRoceChart'), {
-        type: 'line',
-        data: {
-          labels: data.roe_roce_labels,
-          datasets: [
-            { label: 'ROCE %', data: data.roce_history, borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', fill: true, tension: 0.3 },
-            { label: 'ROE %', data: data.roe_history, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.3 }
-          ]
-        },
-        options: sharedOptions
-      });
-
-      if (momentumChartInstance) momentumChartInstance.destroy();
-      momentumChartInstance = new Chart(document.getElementById('momentumChart'), {
-        data: {
-          labels: data.chart_dates,
-          datasets: [
-            { type: 'bar', label: 'MACD Hist', data: data.hist_series, backgroundColor: 'rgba(16, 185, 129, 0.7)', yAxisID: 'y' },
-            { type: 'line', label: 'RSI(14)', data: data.rsi_series, borderColor: '#f59e0b', borderWidth: 2, pointRadius: 0, yAxisID: 'y1' }
-          ]
-        },
-        options: {
-          ...sharedOptions,
-          scales: {
-            y: { position: 'left', ticks: { font: { size: 8 } } },
-            y1: { position: 'right', min: 0, max: 100, ticks: { font: { size: 8 } } }
-          }
-        }
-      });
+      } catch (e) { alert('Connection error.'); }
     }
 
     function renderData(data) {
       currentStockData = data;
+      const bCard = document.getElementById('bhangarWarningCard');
+      const bPoints = document.getElementById('bhangarPoints');
+
+      if (data.is_bhangar_cap) {
+        bPoints.innerHTML = data.bhangar_flags.map(f => `<div class="p-2 rounded bg-rose-100 border border-rose-300">• ${f}</div>`).join('');
+        bCard.classList.remove('hidden');
+      } else {
+        bCard.classList.add('hidden');
+      }
+
       document.getElementById('stockName').innerText = data.name;
       document.getElementById('stockTicker').innerText = data.ticker + '.NS';
+      document.getElementById('stockSector').innerText = data.sector;
       document.getElementById('cmpPrice').innerText = '₹' + data.cmp.toLocaleString('en-IN');
       document.getElementById('instHolding').innerText = data.institutions;
-      document.getElementById('stockStatus').innerText = data.status;
-      document.getElementById('stockStatus').className = 'text-xs font-black px-3 py-1 rounded-full ' + (data.is_shooting_star ? 'bg-amber-400 text-slate-950' : 'bg-emerald-100 text-emerald-800');
+      document.getElementById('dualSlBadge').innerText = `Dual SL: ${data.dual_sl.tier1_closing} | ${data.dual_sl.tier2_intraday}`;
+      document.getElementById('ocfMetric').innerText = data.ocf_pat_ratio + 'x';
 
-      document.getElementById('pivotS2').innerText = '₹' + data.pivots.S2;
+      const badge = document.getElementById('stockBadge');
+      badge.innerText = data.badge_title;
+
+      if (data.badge_code === 'BHANGAR_CAP' || data.badge_code === 'DISCARDED') {
+        badge.className = 'text-xs font-black px-3.5 py-1.5 rounded-full bg-rose-500 text-white shadow-sm';
+        document.getElementById('btnAddToBasket').classList.add('hidden');
+      } else if (data.badge_code === 'SHOOTING_STAR') {
+        badge.className = 'text-xs font-black px-3.5 py-1.5 rounded-full bg-amber-400 text-slate-950 font-black shadow-sm';
+        document.getElementById('btnAddToBasket').classList.remove('hidden');
+      } else {
+        badge.className = 'text-xs font-black px-3.5 py-1.5 rounded-full bg-blue-600 text-white shadow-sm';
+        document.getElementById('btnAddToBasket').classList.remove('hidden');
+      }
+
       document.getElementById('pivotS1').innerText = '₹' + data.pivots.S1;
       document.getElementById('pivotMid').innerText = '₹' + data.pivots.Pivot;
-      document.getElementById('pivotR1').innerText = '₹' + data.pivots.R1;
-      document.getElementById('pivotR2').innerText = '₹' + data.pivots.R2;
-
-      // Upstox Style Gauge Positioning based on RSI & MACD
-      const rsi = data.rsi;
-      let gaugePos = '50%';
-      let badgeText = 'Neutral';
-      let badgeClass = 'bg-amber-100 text-amber-800';
-      if (rsi > 60) {
-        gaugePos = '78%';
-        badgeText = 'Bullish';
-        badgeClass = 'bg-emerald-100 text-emerald-800';
-      } else if (rsi < 42) {
-        gaugePos = '22%';
-        badgeText = 'Bearish';
-        badgeClass = 'bg-rose-100 text-rose-800';
-      }
-      document.getElementById('gaugeIndicator').style.left = gaugePos;
-      const badge = document.getElementById('techSummaryBadge');
-      badge.innerText = badgeText;
-      badge.className = 'text-[10px] font-mono font-bold px-2 py-0.5 rounded ' + badgeClass;
+      document.getElementById('tier1Sl').innerText = data.dual_sl.tier1_closing;
+      document.getElementById('tier2Sl').innerText = data.dual_sl.tier2_intraday;
 
       document.getElementById('ftdbF').innerText = data.ftdb.F;
       document.getElementById('ftdbT').innerText = data.ftdb.T;
       document.getElementById('ftdbD').innerText = data.ftdb.D;
       document.getElementById('ftdbB').innerText = data.ftdb.B;
 
-      renderCharts(data);
       document.getElementById('output').classList.remove('hidden');
     }
 
-    function generateBrandedPdf() {
-      if (!currentStockData) return;
-      document.getElementById('rptStockName').innerText = currentStockData.name;
-      document.getElementById('rptCmp').innerText = "CMP: ₹" + currentStockData.cmp;
-      document.getElementById('rptStatus').innerText = currentStockData.status;
-      document.getElementById('rptReason').innerText = currentStockData.category_reason;
-      window.print();
+    async function addStockObjectToPortfolio(ticker, name, sector, cmp, badge_code, roce, ocf_pat, support, resistance) {
+      try {
+        const res = await fetch('/api/portfolio/add', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-App-Pin': currentAuth.pin},
+          body: JSON.stringify({
+            ticker: ticker,
+            name: name,
+            sector: sector,
+            cmp: cmp,
+            badge_code: badge_code,
+            roce: roce,
+            ocf_pat_ratio: ocf_pat,
+            support: support,
+            resistance: resistance
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.detail || 'Could not add to basket.'); return; }
+        alert(data.message);
+      } catch (e) { alert('Error adding to portfolio.'); }
     }
 
-    function toggleTheme() {
-      const html = document.documentElement;
-      const isDark = html.classList.contains('dark');
-      if (isDark) {
-        html.classList.remove('dark');
-        document.getElementById('themeIcon').innerText = "🌙";
-        document.getElementById('themeText').innerText = "Dark";
-      } else {
-        html.classList.add('dark');
-        document.getElementById('themeIcon').innerText = "☀️";
-        document.getElementById('themeText').innerText = "Light";
+    async function addCurrentStockToPortfolio() {
+      if (!currentStockData) return;
+      addStockObjectToPortfolio(
+        currentStockData.ticker,
+        currentStockData.name,
+        currentStockData.sector,
+        currentStockData.cmp,
+        currentStockData.badge_code,
+        currentStockData.roce,
+        currentStockData.ocf_pat_ratio,
+        currentStockData.pivots.S1,
+        currentStockData.pivots.R1
+      );
+    }
+
+    async function loadPortfolioData() {
+      try {
+        const res = await fetch('/api/portfolio', {
+          headers: {'X-App-Pin': currentAuth.pin}
+        });
+        rawPortfolioData = await res.json();
+        renderPortfolioModel();
+      } catch (e) {}
+    }
+
+    function renderPortfolioModel() {
+      if (!rawPortfolioData) return;
+      const totalCapital = parseFloat(document.getElementById('portfolioCapitalInput').value) || 500000;
+      
+      const riskBanner = document.getElementById('riskTierBanner');
+      const riskLabel = document.getElementById('riskPctLabel');
+      if (totalCapital < 500000) {
+        riskBanner.className = 'p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-bold mb-4';
+        riskLabel.innerText = "❌ BLOCKED: Minimum Capital Floor is ₹5,00,000 for institutional model execution.";
+        return;
       }
+
+      const rPct = totalCapital >= 1000000 ? 1.0 : 1.5;
+      const maxRiskAmt = totalCapital * (rPct / 100);
+      riskBanner.className = 'p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold mb-4 flex justify-between items-center';
+      riskLabel.innerText = `${rPct}% 1R per trade (₹${maxRiskAmt.toLocaleString('en-IN')} max risk)`;
+
+      document.getElementById('allocEquityAmt').innerText = '₹' + (totalCapital * 0.60).toLocaleString('en-IN');
+      document.getElementById('allocGoldAmt').innerText = '₹' + (totalCapital * 0.15).toLocaleString('en-IN');
+      document.getElementById('allocArbAmt').innerText = '₹' + (totalCapital * 0.15).toLocaleString('en-IN');
+      document.getElementById('allocCashAmt').innerText = '₹' + (totalCapital * 0.10).toLocaleString('en-IN');
+
+      const tbody = document.getElementById('portfolioTableBody');
+      const emptyMsg = document.getElementById('emptyPortfolioMsg');
+      const basket = rawPortfolioData.equity_basket || [];
+      if (basket.length === 0) {
+        tbody.innerHTML = '';
+        emptyMsg.classList.remove('hidden');
+        return;
+      }
+
+      emptyMsg.classList.add('hidden');
+      tbody.innerHTML = basket.map(item => {
+        const allocAmt = (totalCapital * (item.weight / 100));
+        const qty = Math.max(1, Math.floor(allocAmt / item.cmp));
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3">
+              <div class="font-black text-slate-900">${item.name}</div>
+              <div class="text-[10px] text-blue-600">${item.ticker}.NS</div>
+            </td>
+            <td class="p-3">${item.sector}</td>
+            <td class="p-3 font-black text-blue-600">${item.weight}%</td>
+            <td class="p-3 font-black text-slate-900">₹${Math.round(allocAmt).toLocaleString('en-IN')}</td>
+            <td class="p-3">₹${item.cmp}</td>
+            <td class="p-3 font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded">${qty} Shares</td>
+            <td class="p-3 text-emerald-600">${item.entry_zone}</td>
+            <td class="p-3 text-rose-500">${item.stop_loss}</td>
+            <td class="p-3 text-blue-600">${item.target}</td>
+            <td class="p-3 text-[10px] text-slate-500">Close &lt; EMA21 OR Tick &le; ${item.stop_loss}</td>
+            <td class="p-3 text-right">
+              <button onclick="removeFromPortfolio('${item.ticker}')" class="text-rose-500 hover:text-rose-700 font-black">✕</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function saveAndGeneratePortfolioRun() {
+      const capital = parseFloat(document.getElementById('portfolioCapitalInput').value) || 500000;
+      if (capital < 500000) { alert("Minimum capital threshold is ₹5,00,000."); return; }
+
+      const goldScheme = document.getElementById('goldSchemeInput').value.trim() || "Gold ETF";
+      const arbScheme = document.getElementById('arbSchemeInput').value.trim() || "Arbitrage Fund";
+      const liquidScheme = document.getElementById('liquidSchemeInput').value.trim() || "Liquid Fund";
+
+      try {
+        const res = await fetch('/api/portfolio/save-run', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-App-Pin': currentAuth.pin},
+          body: JSON.stringify({
+            capital: capital,
+            gold_scheme: goldScheme,
+            arbitrage_scheme: arbScheme,
+            liquid_scheme: liquidScheme
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`✅ Institutional Portfolio Run Saved! ID: ${data.portfolio_id}`);
+        } else {
+          alert(data.detail || "Error saving portfolio run.");
+        }
+      } catch (e) { alert("Server communication error."); }
+    }
+
+    function downloadTrackingCsv() {
+      window.location.href = `/api/portfolio/export-csv`;
+    }
+
+    async function removeFromPortfolio(ticker) {
+      if (!confirm(`Remove ${ticker} from portfolio basket?`)) return;
+      try {
+        await fetch(`/api/portfolio/${ticker}`, {
+          method: 'DELETE',
+          headers: {'X-App-Pin': currentAuth.pin}
+        });
+        loadPortfolioData();
+      } catch (e) {}
     }
   </script>
 </body>

@@ -1,0 +1,58 @@
+[
+  {
+    "portfolio_id": "AF-PORT-20260912-204736",
+    "timestamp": "2026-09-12 20:47:36",
+    "total_capital": 500000.0,
+    "allocations": {
+      "core_equity": {
+        "pct": 60.0,
+        "amount": 300000.0,
+        "basket": [
+          {
+            "ticker": "GANDHAR",
+            "name": "GANDHAR OIL REFINE IND L",
+            "sector": "Energy",
+            "badge": "COMPOUNDER",
+            "weight_pct": 8.0,
+            "allocated_amt": 40000.0,
+            "cmp": 272.7,
+            "quantity": 146,
+            "entry_zone": "\u20b9157.63 - \u20b9272.7",
+            "stop_loss": 250.88,
+            "target": 344.06,
+            "alert_trigger": "Break < \u20b9250.88"
+          },
+          {
+            "ticker": "NRL",
+            "name": "NUPUR RECYCLERS LIMITED",
+            "sector": "Industrials",
+            "badge": "COMPOUNDER",
+            "weight_pct": 8.0,
+            "allocated_amt": 40000.0,
+            "cmp": 133.06,
+            "quantity": 300,
+            "entry_zone": "\u20b972.78 - \u20b9133.06",
+            "stop_loss": 122.42,
+            "target": 165.68,
+            "alert_trigger": "Break < \u20b9122.42"
+          }
+        ]
+      },
+      "gold_hedge": {
+        "pct": 15.0,
+        "amount": 75000.0,
+        "scheme": "Nippon India ETF Gold BeES"
+      },
+      "arbitrage_debt": {
+        "pct": 15.0,
+        "amount": 75000.0,
+        "scheme": "Kotak Arbitrage Fund"
+      },
+      "tactical_liquid": {
+        "pct": 10.0,
+        "amount": 50000.0,
+        "scheme": "HDFC Liquid Fund"
+      }
+    }
+  }
+]
